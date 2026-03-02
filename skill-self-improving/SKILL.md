@@ -304,3 +304,4 @@ Before considering any self-improvement cycle complete:
 - [ ] No valid existing content removed without justification
 - [ ] Change report generated with full rationale for every modification
 - [ ] User notified and changes presented for review
+- [ ] Skills repo pushed to GitHub (`cd ~/.claude/skills && git add -A && git commit -m "chore: self-improve — {brief summary}" && git push origin main`)
