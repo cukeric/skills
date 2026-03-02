@@ -222,6 +222,8 @@ logger.info("user_login", user_id=user.id, ip=request.client.host)
 
 ## Sentry (Error Tracking)
 
+### Express / Fastify (Node.js)
+
 ```bash
 pnpm add @sentry/node
 ```
@@ -244,6 +246,111 @@ process.on('unhandledRejection', (reason) => {
   Sentry.captureException(reason)
 })
 ```
+
+### Next.js Integration (`@sentry/nextjs`)
+
+Next.js requires separate configs for client, server, and edge runtimes, plus instrumentation files and a root error boundary.
+
+```bash
+pnpm add @sentry/nextjs
+```
+
+**Required env vars:**
+- `NEXT_PUBLIC_SENTRY_DSN` — public DSN (safe to expose, identifies project only)
+- `SENTRY_AUTH_TOKEN` — org auth token for source map upload (build-time only)
+
+**1. Three config files at project root:**
+
+```typescript
+// sentry.client.config.ts
+import * as Sentry from "@sentry/nextjs"
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  replaysSessionSampleRate: 0.05,
+  replaysOnErrorSampleRate: 1.0,
+  integrations: [
+    Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
+  ],
+  environment: process.env.NODE_ENV,
+})
+```
+
+```typescript
+// sentry.server.config.ts
+import * as Sentry from "@sentry/nextjs"
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  environment: process.env.NODE_ENV,
+})
+```
+
+```typescript
+// sentry.edge.config.ts — same as server config
+import * as Sentry from "@sentry/nextjs"
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  environment: process.env.NODE_ENV,
+})
+```
+
+**2. Instrumentation files (Next.js 15+):**
+
+```typescript
+// src/instrumentation.ts
+export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("../sentry.server.config")
+  }
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("../sentry.edge.config")
+  }
+}
+```
+
+```typescript
+// src/instrumentation-client.ts
+import "../sentry.client.config"
+```
+
+**3. Root error boundary (`src/app/global-error.tsx`):**
+
+```typescript
+"use client"
+import * as Sentry from "@sentry/nextjs"
+import { useEffect } from "react"
+
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => { Sentry.captureException(error) }, [error])
+
+  return (
+    <html><body>
+      <h1>Something went wrong</h1>
+      <button onClick={reset}>Try again</button>
+    </body></html>
+  )
+}
+```
+
+**4. Wrap `next.config.ts`:**
+
+```typescript
+import { withSentryConfig } from "@sentry/nextjs"
+
+const nextConfig = { /* ... */ }
+
+export default withSentryConfig(nextConfig, {
+  silent: true,     // Suppress source map upload logs
+  telemetry: false, // Disable Sentry CLI telemetry
+})
+```
+
+> **Key difference from Express:** Next.js uses file-convention instrumentation (`instrumentation.ts`) instead of importing Sentry at the top of an entry file. The `withSentryConfig` wrapper automatically uploads source maps during `next build`.
 
 ## Prometheus + Grafana (Docker Compose)
 

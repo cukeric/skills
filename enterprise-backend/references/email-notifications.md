@@ -338,11 +338,55 @@ async function shouldSendNotification(userId: string, type: string, channel: 'em
 
 ---
 
-## Deliverability Checklist
+## Deliverability Setup
 
-- [ ] SPF record configured for sending domain
-- [ ] DKIM signing enabled (provider configures this)
-- [ ] DMARC policy published (start with `p=none`, monitor, then enforce)
+### DNS Records (Required for Custom Domain Sending)
+
+Without proper DNS records, emails land in spam or get rejected entirely.
+
+**SPF (TXT record on root domain):**
+```
+Type: TXT
+Name: @
+Value: v=spf1 include:send.resend.com ~all
+```
+If you have multiple senders (e.g., Resend + Google Workspace), combine them:
+```
+v=spf1 include:_spf.google.com include:send.resend.com ~all
+```
+
+**DKIM (TXT record — provider-specific):**
+Each provider gives you a specific DKIM record to add. Example for Resend:
+```
+Type: TXT
+Name: resend._domainkey
+Value: (long key provided by Resend dashboard)
+```
+
+**DMARC (TXT record on root domain):**
+```
+Type: TXT
+Name: _dmarc
+Value: v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com
+```
+Start with `p=none` to monitor, then move to `p=quarantine` once deliverability is confirmed. Never skip DMARC — it prevents domain spoofing.
+
+### Provider Domain Verification
+
+Most providers require domain verification before you can send from a custom address:
+
+1. **Resend:** Dashboard → Domains → Add Domain → Add DNS records → Wait for verification (usually <5 min)
+2. **SendGrid:** Settings → Sender Authentication → Domain Authentication → Add DNS records
+3. **AWS SES:** Verified identities → Create identity → Domain → Add DNS records
+
+> **Common pitfall:** Sending from a custom domain (e.g., `info@yourdomain.com`) before DNS verification returns 403 or bounces. Always verify first.
+
+### Deliverability Checklist
+
+- [ ] SPF record configured for sending domain (include provider's SPF)
+- [ ] DKIM signing enabled (TXT record from provider dashboard)
+- [ ] DMARC policy published (`p=quarantine` minimum for production)
+- [ ] Domain verified in email provider dashboard
 - [ ] Return-Path / bounce address configured
 - [ ] Unsubscribe link in every non-transactional email (CAN-SPAM)
 - [ ] List-Unsubscribe header on marketing emails
@@ -350,3 +394,4 @@ async function shouldSendNotification(userId: string, type: string, channel: 'em
 - [ ] Sender address verified with provider
 - [ ] Bounce and complaint handling configured
 - [ ] Send rate within provider limits (use queue to throttle)
+- [ ] Test delivery to Gmail, Outlook, and Yahoo (not just your own domain)

@@ -154,6 +154,109 @@ export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico
 
 ---
 
+## Shared Layout Components (Header, Footer, Shell)
+
+Next.js App Router layouts compose hierarchically. A shared component (e.g., footer) can't simply go in the root layout if some pages already have their own version (landing page with custom footer, microsites with no footer). Choose the right strategy:
+
+### Strategy Decision
+
+| Scenario | Approach |
+|---|---|
+| Footer/header identical on every page | Put in root `layout.tsx` |
+| Some pages have custom footer (landing page) | Add per-layout or per-page — NOT root layout |
+| Auth pages share a layout, dashboard pages share a different one | Use route group layouts: `(auth)/layout.tsx`, `(dashboard)/layout.tsx` |
+| One-off pages (contact, privacy, terms) | Import and render directly in the page component |
+
+### Shared Footer Component
+
+```tsx
+// src/components/SiteFooter.tsx
+import Link from "next/link"
+
+export default function SiteFooter() {
+  return (
+    <footer className="w-full border-t border-border/40 bg-background/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <span className="text-xs font-medium text-muted-foreground">AppName</span>
+          <nav className="flex items-center gap-6" aria-label="Footer">
+            <Link href="/contact" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+            <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
+          </nav>
+          <p className="text-[11px] text-muted-foreground/60">&copy; {new Date().getFullYear()} AppName</p>
+        </div>
+      </div>
+    </footer>
+  )
+}
+```
+
+### Route Group Layout Pattern
+
+Use route groups to wrap related pages with shared chrome without affecting the URL structure:
+
+```tsx
+// src/app/(auth)/layout.tsx — wraps /login, /register, /forgot-password
+import SiteFooter from "@/components/SiteFooter"
+
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1">{children}</div>
+      <SiteFooter />
+    </div>
+  )
+}
+```
+
+```tsx
+// src/app/(dashboard)/layout.tsx — wraps authenticated pages
+import { SessionProvider } from "next-auth/react"
+import SiteFooter from "@/components/SiteFooter"
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      {children}
+      <SiteFooter />
+    </SessionProvider>
+  )
+}
+```
+
+### Avoiding Double Footers
+
+> **Common mistake:** Adding a footer to the root layout AND having pages/route-groups that render their own footer. This causes double footers.
+>
+> **Rule:** If ANY page under a layout has its own footer (e.g., a landing page with a custom branded footer), do NOT put a shared footer in the parent layout. Instead, add the footer to each route group or page individually.
+
+### Dashboard Shell Pattern
+
+For authenticated areas with sidebar + header + content area:
+
+```tsx
+// src/components/DashboardShell.tsx
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
+        {/* Logo, nav, user menu */}
+      </header>
+      <div className="flex flex-1">
+        <aside className="hidden lg:block w-60 border-r p-4">
+          {/* Sidebar navigation */}
+        </aside>
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+      <SiteFooter />
+    </div>
+  )
+}
+```
+
+---
+
 ## React Component Patterns
 
 ### cn() utility for Tailwind class merging

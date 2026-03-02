@@ -291,6 +291,12 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache dumb-init && rm -
 # No: ENV DATABASE_URL=postgresql://...
 # Yes: Use env_file or secrets management at runtime
 
+# ⚠️ COPY .env pitfall (Next.js standalone):
+# If your Dockerfile does `COPY .env.local ./` to bake env vars at build time,
+# changing an env var on the host requires `docker compose build --no-cache`,
+# NOT just `docker compose up -d` (which reuses the existing image).
+# This is a common gotcha when updating API keys, DSNs, or feature flags.
+
 # ✅ Use COPY not ADD (ADD has implicit tar extraction and URL fetching)
 COPY . .
 ```
