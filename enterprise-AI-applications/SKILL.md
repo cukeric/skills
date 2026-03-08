@@ -17,10 +17,13 @@ Read this SKILL.md first for pattern selection, then consult the relevant refere
 3. `references/chatbot-conversational.md` — Customer support bots, internal assistants, conversation memory strategies, streaming, escalation, personality
 4. `references/multimodal-pipelines.md` — Vision (image analysis, OCR), audio (transcription, TTS), PDF processing, multi-format document Q&A
 
+### Media Generation
+5. `references/ai-video-generation.md` — Google Veo 3.1 image-to-video (REST + SDK), multi-clip FFmpeg crossfade stitching, EXIF stripping, cross-browser video serving, async polling
+
 ### Framework & Implementation
-5. `references/langchain-langgraph.md` — LangChain chains/retrievers, LangGraph state machines, tool nodes, conditional routing, checkpointing
-6. `references/raw-sdk-patterns.md` — No-framework: direct API tool use, streaming, structured output (JSON mode), batch processing, function calling
-7. `references/evaluation-testing.md` — RAG evaluation (faithfulness, relevance), agent testing, LLM-as-judge, regression benchmarks, A/B testing
+6. `references/langchain-langgraph.md` — LangChain chains/retrievers, LangGraph state machines, tool nodes, conditional routing, checkpointing
+7. `references/raw-sdk-patterns.md` — No-framework: direct API tool use, streaming, structured output (JSON mode), batch processing, function calling
+8. `references/evaluation-testing.md` — RAG evaluation (faithfulness, relevance), agent testing, LLM-as-judge, regression benchmarks, A/B testing
 
 ---
 

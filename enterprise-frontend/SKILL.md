@@ -20,8 +20,9 @@ This skill has detailed reference guides. Read the relevant file(s) based on the
 - `references/glassmorphic-design-system.md` — Default design system: glassmorphic components, color tokens, typography, spacing, warm-toned soft palette
 - `references/dashboard-patterns.md` — Real-time dashboards, admin panels, data grids, modular widget layouts
 
-### Data Visualization
+### Data Visualization & Maps
 - `references/data-visualization.md` — Charts, graphs, maps, real-time streaming visualization, library selection
+- `references/google-maps-integration.md` — Google Maps Places Autocomplete, Static Maps, Geocoding, address input components
 
 ### Responsive Design & Accessibility
 - `references/responsive-accessibility.md` — Responsive breakpoints, mobile-first patterns, WCAG 2.1 AA compliance, keyboard navigation, screen readers
