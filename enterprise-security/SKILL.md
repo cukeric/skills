@@ -33,6 +33,10 @@ Every application must be secured against known attack vectors and comply with a
 
 - `references/secrets-rotation.md` — Vault, Doppler, AWS Secrets Manager, rotation automation, zero-downtime rotation, emergency procedures
 
+### Third-Party Vendor & API Risk
+
+- `references/third-party-vendor-audit.md` — Vendor identity verification, privacy/compliance checklist, technical security audit, data safeguards for high-risk vendors, risk rating matrix, ToS violation detection
+
 Read this SKILL.md first for the security-first mindset and decision framework, then consult references for implementation specifics.
 
 ---

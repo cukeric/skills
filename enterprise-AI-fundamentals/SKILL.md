@@ -24,6 +24,9 @@ Read this SKILL.md first for architecture decisions, then consult the relevant r
 - `references/ai-safety-guardrails.md` — Content filtering, prompt injection defense, PII detection/redaction, hallucination mitigation, toxicity filtering.
 - `references/cost-governance.md` — Token budgeting, per-user/tenant rate limiting, semantic caching, audit logging, compliance, data residency.
 
+### Multimodal & Fallback Architecture
+- `references/multimodal-fallback-chains.md` — Capability-matching across fallback tiers, multimodal provider comparison, image format for OpenAI-compatible APIs, Zod runtime validation for AI outputs.
+
 ---
 
 ## Decision Framework: Choosing Your AI Infrastructure
