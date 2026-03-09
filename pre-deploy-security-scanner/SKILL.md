@@ -115,6 +115,57 @@ grep -rn "stack\|SQL\|prisma\|PrismaClient" src/app/api/ --include="*.ts"
 - Error responses: machine-readable code + human message. No stack traces, SQL, or file paths.
 - User A must not access User B's data (check `where: { userId: session.user.id }` patterns)
 
+### 5b. Account Enumeration Prevention (OWASP A07)
+
+Check that auth endpoints don't leak account existence:
+
+```bash
+# Registration should NOT return different status codes for existing vs new emails
+# FAIL if registration returns 409 Conflict for existing emails
+grep -rn "409\|CONFLICT\|already exists" src/app/api/auth/register/ --include="*.ts"
+
+# Login should use generic error messages
+# FAIL if login returns "user not found" vs "wrong password" differently
+grep -rn "not found\|no account\|doesn't exist" src/app/api/auth/ --include="*.ts"
+
+# Password reset should always return same response
+grep -rn "user not found\|no account" src/app/api/auth/forgot-password/ --include="*.ts"
+```
+
+### 5c. Frontend/Backend Validation Sync
+
+Check that frontend validation constraints match backend:
+
+```bash
+# Find all minLength in frontend forms
+grep -rn "minLength" src/app/ --include="*.tsx"
+
+# Compare with backend password validation
+grep -rn "password.*length\|\.length.*<\|\.length.*>" src/app/api/auth/ --include="*.ts"
+
+# FAIL if frontend minLength differs from backend minimum
+```
+
+### 5d. OAuth State Token Security
+
+```bash
+# OAuth state must be HMAC-signed, not just random
+grep -rn "state\|createHmac\|signState\|verifyState" src/app/api/social/ --include="*.ts"
+
+# FAIL if state tokens are unsigned (base64-only without HMAC)
+# FAIL if callback doesn't verify signature with timingSafeEqual
+grep -rn "timingSafeEqual" src/app/api/social/callback/ --include="*.ts"
+```
+
+### 5e. Content-Disposition Header Safety
+
+```bash
+# Any response that sets Content-Disposition must sanitize the filename
+grep -rn "Content-Disposition" src/app/api/ --include="*.ts"
+
+# FAIL if filename comes from DB or user input without path.basename() or regex sanitization
+```
+
 ### 6. Security Headers
 
 ```bash
@@ -123,7 +174,7 @@ grep -A 30 "headers" next.config.ts
 ```
 
 **Required headers:**
-- `Strict-Transport-Security`: `max-age=31536000; includeSubDomains`
+- `Strict-Transport-Security`: `max-age=31536000; includeSubDomains; preload`
 - `X-Content-Type-Options`: `nosniff`
 - `X-Frame-Options`: `DENY`
 - `Referrer-Policy`: `strict-origin-when-cross-origin`

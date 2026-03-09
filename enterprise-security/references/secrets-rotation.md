@@ -264,10 +264,41 @@ secrets:
 
 ---
 
+## Crontab Secret Exposure (Common Pitfall)
+
+Secrets hardcoded in crontab entries are visible to any user via `crontab -l` and in process listings via `ps aux`. This is a frequently overlooked exposure vector.
+
+**BAD — Secret visible in crontab and process list:**
+```bash
+# crontab -e
+0 3 * * * curl -s -H "Authorization: Bearer s3cr3t-t0k3n" https://app.com/api/cron/cleanup
+```
+
+**GOOD — Script reads secret from env file at runtime:**
+```bash
+# /root/cron-cleanup.sh (chmod 700, root-only)
+#!/bin/bash
+SECRET=$(grep '^CRON_SECRET=' /path/to/.env.local | cut -d= -f2)
+curl -s -H "Authorization: Bearer $SECRET" https://app.com/api/cron/cleanup > /dev/null 2>&1
+```
+
+```bash
+# crontab -e — no secrets visible
+0 3 * * * /root/cron-cleanup.sh
+```
+
+**Key rules:**
+- Cron scripts must have `700` permissions (owner-only execute)
+- Secrets read from `.env` files at runtime, never inlined
+- Rotate the secret if it was previously exposed in crontab
+
+---
+
 ## Secrets Checklist
 
 - [ ] All secrets in environment variables or secrets manager
 - [ ] .env files in .gitignore
+- [ ] No secrets hardcoded in crontab entries (use script files instead)
 - [ ] Different secrets per environment (dev/staging/prod)
 - [ ] Secrets validated at application startup
 - [ ] Rotation schedule defined (90 days recommended)
