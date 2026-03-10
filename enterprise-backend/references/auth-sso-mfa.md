@@ -764,3 +764,69 @@ export function requirePermission(permission: string) {
 - [ ] CORS strict origin allowlist
 - [ ] Rate limiting on all auth endpoints (stricter: 5/min login, 3/min password reset)
 - [ ] All auth events logged with: userId, IP, userAgent, timestamp, result
+
+---
+
+## Standalone Admin Auth (Separate from Main Auth)
+
+When building an internal admin dashboard that must NOT share the main application's auth system (e.g., NextAuth, Clerk, Supabase Auth), use a standalone cookie-based auth with its own credentials.
+
+### When to Use
+
+- Admin panel accessible at a hidden URL (e.g., `/admin`) — not linked from navigation
+- Credentials stored as env vars (not in the user database)
+- Single-instance or low-traffic admin use (in-memory session store acceptable)
+- Admin route must not interfere with the main auth system
+
+### Implementation Pattern
+
+```typescript
+import crypto from 'crypto'
+
+// Env-based credentials — never hardcoded
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME!
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!
+const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || process.env.NEXTAUTH_SECRET!
+
+// In-memory session store (acceptable for single-instance VPS)
+const activeSessions = new Map<string, { expiresAt: number }>()
+
+// HMAC-based constant-time comparison — prevents length-leak timing attacks
+function constantTimeEqual(a: string, b: string): boolean {
+  const ha = crypto.createHmac('sha256', SESSION_SECRET).update(a).digest()
+  const hb = crypto.createHmac('sha256', SESSION_SECRET).update(b).digest()
+  return crypto.timingSafeEqual(ha, hb)
+}
+
+// Random session token — revocable, unlike static HMAC tokens
+function createSession(): string {
+  const token = crypto.randomBytes(32).toString('hex')
+  activeSessions.set(token, { expiresAt: Date.now() + 8 * 60 * 60 * 1000 })
+  // Purge expired sessions on each creation
+  for (const [key, s] of activeSessions) {
+    if (s.expiresAt < Date.now()) activeSessions.delete(key)
+  }
+  return token
+}
+
+function validateSession(token: string): boolean {
+  const session = activeSessions.get(token)
+  if (!session || session.expiresAt < Date.now()) {
+    if (session) activeSessions.delete(token)
+    return false
+  }
+  return true
+}
+```
+
+### Security Checklist for Standalone Admin
+
+- [ ] Credentials in env vars, never hardcoded
+- [ ] HMAC constant-time comparison for credential checks (no length leak)
+- [ ] Random session tokens (not static HMAC), stored in Map with expiry
+- [ ] HttpOnly + Secure + SameSite=strict cookie
+- [ ] Rate limiting on login endpoint (5/min/IP)
+- [ ] `robots: noindex, nofollow` meta tag on admin pages
+- [ ] Admin layout has no `<meta>` for robots indexing
+- [ ] Not linked from any navigation, footer, or sitemap
+- [ ] Email/PII masked in admin dashboard responses (e.g., `j***@example.com`)

@@ -392,3 +392,86 @@ find "$BACKUP_DIR" -name "*.dump" -mtime +$RETENTION_DAYS -delete
 
 echo "Backup completed: ${DB_NAME}_${TIMESTAMP}.dump"
 ```
+
+---
+
+## Row-Level Locking & TOCTOU Prevention
+
+### The Problem: TOCTOU Race Conditions
+
+Time-of-Check-to-Time-of-Use (TOCTOU) bugs occur when you read a value, make a decision, then write — but another concurrent request changes the value between your read and write. Common in credit/token/balance systems.
+
+```
+Request A: SELECT balance → 5 tokens
+Request B: SELECT balance → 5 tokens (same stale read)
+Request A: UPDATE balance SET balance = balance - 3 → 2 tokens ✓
+Request B: UPDATE balance SET balance = balance - 3 → -1 tokens ✗ (overdraft!)
+```
+
+### Solution: SELECT FOR UPDATE in a Transaction
+
+```sql
+-- Lock rows before reading, preventing concurrent reads until transaction completes
+BEGIN;
+  SELECT id, "remainingTokens"
+  FROM "TokenBatch"
+  WHERE "userId" = $1
+    AND "remainingTokens" > 0
+    AND "expiresAt" > NOW()
+  ORDER BY "createdAt" ASC
+  FOR UPDATE;  -- Row-level lock: other transactions block here
+
+  -- Now safe to check totals and deduct
+  UPDATE "TokenBatch" SET "remainingTokens" = "remainingTokens" - $2 WHERE id = $3;
+COMMIT;
+```
+
+### Prisma Interactive Transaction Pattern
+
+Prisma doesn't support `FOR UPDATE` natively. Use `$queryRaw` inside an interactive transaction:
+
+```typescript
+export async function deductTokens(userId: string, amount: number): Promise<boolean> {
+  return await prisma.$transaction(async (tx) => {
+    // Lock rows with FOR UPDATE via raw SQL
+    const batches = await tx.$queryRaw<
+      { id: string; remainingTokens: number }[]
+    >`SELECT id, "remainingTokens"
+      FROM "TokenBatch"
+      WHERE "userId" = ${userId}
+        AND "remainingTokens" > 0
+        AND "expiresAt" > ${new Date()}
+      ORDER BY "createdAt" ASC
+      FOR UPDATE`
+
+    const total = batches.reduce((sum, b) => sum + b.remainingTokens, 0)
+    if (total < amount) return false
+
+    // FIFO deduction — oldest batch first
+    let remaining = amount
+    for (const batch of batches) {
+      if (remaining <= 0) break
+      const deduct = Math.min(batch.remainingTokens, remaining)
+      await tx.tokenBatch.update({
+        where: { id: batch.id },
+        data: { remainingTokens: { decrement: deduct } },
+      })
+      remaining -= deduct
+    }
+
+    return true
+  }, {
+    isolationLevel: 'Serializable',
+    timeout: 10000,
+  })
+}
+```
+
+### Key Guidelines
+
+- **Always use `FOR UPDATE`** when reading data that determines a write decision (balances, quotas, inventory)
+- **Use `Serializable` isolation** for financial operations (token deduction, payments, transfers)
+- **Set a timeout** on transactions (10s is reasonable) to prevent deadlocks from hanging
+- **FIFO ordering**: Use `ORDER BY "createdAt" ASC` when consuming from batches (oldest first)
+- **Refund cap**: When refunding, cap at `totalTokens - remainingTokens` to prevent over-credit
+- **Prisma `$queryRaw`**: Use template literals (not string concatenation) for parameterized raw queries

@@ -340,3 +340,79 @@ Any server can publish; all servers receive and forward to their connected clien
 - [ ] Background jobs: no sensitive data in job payloads logged to console
 - [ ] Queue admin UI (Bull Board) protected behind auth
 - [ ] Dead letter queue monitored and alerted
+
+---
+
+## HTTP Range Requests (Video/File Streaming)
+
+Required for `<video>` playback in Safari, Brave, and Edge. Without Range support, only Chrome plays the video.
+
+### Implementation (Next.js API Route)
+
+```typescript
+export async function GET(request: Request) {
+  const filePath = '/data/videos/example.mp4'
+  const stat = await fs.stat(filePath)
+  const fileSize = stat.size
+
+  // Sanitize filename to prevent header injection
+  const safeFilename = path.basename(filename).replace(/[^a-z0-9.\-]/gi, '_')
+
+  const rangeHeader = request.headers.get('range')
+
+  if (rangeHeader) {
+    const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+    if (match) {
+      const start = parseInt(match[1], 10)
+      // Cap chunk to 2MB to prevent memory exhaustion
+      const MAX_CHUNK = 2 * 1024 * 1024
+      const end = match[2]
+        ? Math.min(parseInt(match[2], 10), fileSize - 1)
+        : Math.min(start + MAX_CHUNK - 1, fileSize - 1)
+
+      if (start >= fileSize || start < 0 || end < start) {
+        return new Response(null, {
+          status: 416,
+          headers: { 'Content-Range': `bytes */${fileSize}` },
+        })
+      }
+
+      const chunkSize = end - start + 1
+      const fileHandle = await fs.open(filePath, 'r')
+      const buffer = Buffer.alloc(chunkSize)
+      await fileHandle.read(buffer, 0, chunkSize, start)
+      await fileHandle.close()
+
+      return new Response(buffer, {
+        status: 206,
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': String(chunkSize),
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Disposition': `inline; filename="${safeFilename}"`,
+        },
+      })
+    }
+  }
+
+  // Full file response (non-Range)
+  const fileBuffer = await fs.readFile(filePath)
+  return new Response(fileBuffer, {
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Length': String(fileSize),
+      'Accept-Ranges': 'bytes', // MUST include — tells browsers Range is supported
+      'Content-Disposition': `inline; filename="${safeFilename}"`,
+    },
+  })
+}
+```
+
+### Key Requirements
+
+- **Always include `Accept-Ranges: bytes`** in full-file responses — tells browsers Range requests are supported
+- **Cap chunk size** (2MB recommended) to prevent large buffer allocations from malicious Range headers
+- **Validate bounds**: Return `416 Range Not Satisfiable` for invalid start/end values
+- **Sanitize filenames** in `Content-Disposition` to prevent header injection
+- **HTML**: Use `<source type="video/mp4">` inside `<video>`, not bare `src` attribute

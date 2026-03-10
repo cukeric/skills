@@ -78,12 +78,37 @@ async function verifyPassword(hash: string, password: string): Promise<boolean> 
 }
 ```
 
+### Timing-Safe Secret Comparison
+
+When comparing secrets (API keys, tokens, admin credentials, webhook signatures), use constant-time comparison to prevent timing attacks. **Critical pitfall:** checking `.length` equality before `timingSafeEqual` leaks length information via short-circuit.
+
+```typescript
+import crypto from 'crypto'
+
+// ❌ WRONG — leaks length via short-circuit before timingSafeEqual runs
+function badCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false // Timing leak!
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))
+}
+
+// ✅ CORRECT — HMAC produces fixed-length digests regardless of input
+function constantTimeEqual(a: string, b: string, secret: string): boolean {
+  const ha = crypto.createHmac('sha256', secret).update(a).digest()
+  const hb = crypto.createHmac('sha256', secret).update(b).digest()
+  return crypto.timingSafeEqual(ha, hb)
+}
+```
+
+Use the HMAC pattern for any credential comparison: admin passwords, API keys, webhook secrets, CSRF tokens.
+
 ### What NOT to Do
 
 - Never use MD5, SHA-1, or plain SHA-256 for passwords
 - Never store encryption keys in code or config files
 - Never use `Math.random()` for tokens — use `crypto.randomUUID()` or `crypto.randomBytes()`
 - Never disable TLS certificate verification
+- Never compare secrets with `===` — always use constant-time comparison
+- Never check string length before `timingSafeEqual` — it leaks information
 
 ---
 
