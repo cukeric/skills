@@ -104,6 +104,64 @@ function OrderSummary({ orders }) {
 }
 ```
 
+### Typing `t` as a Component Prop
+
+When passing the `t` function to sub-components, use `ReturnType<typeof useTranslations>`:
+
+```typescript
+import { useTranslations } from 'next-intl'
+
+// CORRECT — preserves full type safety
+function SubComponent({ t }: { t: ReturnType<typeof useTranslations> }) {
+  return <p>{t('someKey')}</p>
+}
+
+// WRONG — loses namespace type safety, breaks t.rich() and other methods
+function SubComponent({ t }: { t: (key: string) => string }) { ... }
+```
+
+### Rich Text (HTML in Translations)
+
+Use `t.rich()` for translations that contain HTML tags:
+
+```json
+{
+  "description": "Save <strong>up to 40%</strong> with a subscription"
+}
+```
+
+```tsx
+{t.rich('description', {
+  strong: (chunks) => <strong>{chunks}</strong>,
+  code: (chunks) => <code className="font-mono">{chunks}</code>,
+})}
+```
+
+### Cookie-Based Locale (No URL Prefix)
+
+For apps that use cookie-based locale detection without `/[locale]/` URL prefixes:
+
+```typescript
+// routing.ts
+import { defineRouting } from 'next-intl/routing'
+export const routing = defineRouting({
+  locales: ['en', 'es', 'fr', 'pt', 'de', 'it', 'nl'],
+  defaultLocale: 'en',
+})
+
+// middleware.ts — create but DON'T call intlMiddleware until URL-prefix routing is ready
+const intlMiddleware = createIntlMiddleware(routing)
+// Locale is set via NEXT_LOCALE cookie by LanguageSwitcher component
+```
+
+### Bulk i18n Wiring Strategy
+
+When translating many pages at once with parallel agents:
+1. **Wave 1**: Pages that DON'T share locale file namespaces (avoids merge conflicts)
+2. **Wave 2**: Remaining pages
+3. Run a verification pass: check key parity across all locales, placeholder integrity
+4. Use `labelKey`/`descKey` pattern for data arrays (dropdowns, option lists) instead of hardcoded labels
+
 ---
 
 ## i18next (Framework-Agnostic)

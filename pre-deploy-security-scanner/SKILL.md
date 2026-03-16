@@ -157,7 +157,29 @@ grep -rn "state\|createHmac\|signState\|verifyState" src/app/api/social/ --inclu
 grep -rn "timingSafeEqual" src/app/api/social/callback/ --include="*.ts"
 ```
 
-### 5e. Content-Disposition Header Safety
+### 5e. Open Redirect Prevention (OWASP A01)
+
+Check that redirect URLs from query params are validated:
+
+```bash
+# Find callbackUrl / returnUrl / redirect usage
+grep -rn "callbackUrl\|returnUrl\|redirect.*searchParams\|redirect.*query" src/ --include="*.ts" --include="*.tsx"
+
+# Client-side: window.location.href with dynamic values must validate
+grep -rn "window\.location\.href\s*=" src/ --include="*.tsx"
+
+# FAIL if callbackUrl is used without startsWith("/") check
+# FAIL if startsWith("/") check doesn't also block "//" (protocol-relative URLs)
+# PASS pattern: rawCallback?.startsWith("/") && !rawCallback.startsWith("//")
+```
+
+**Rules:**
+- Server-side (middleware): validate `callbackUrl` starts with `/` and not `//`
+- Client-side (login/register/verify-email): same validation before `window.location.href`
+- Never accept absolute URLs (`https://...`) in redirect params
+- Auth.js `signIn()` with `callbackUrl` — validate before passing
+
+### 5f. Content-Disposition Header Safety
 
 ```bash
 # Any response that sets Content-Disposition must sanitize the filename
