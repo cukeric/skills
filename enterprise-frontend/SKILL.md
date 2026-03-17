@@ -231,6 +231,17 @@ Unless the user specifies otherwise, all UIs must follow the **glassmorphic desi
 6. **Typography hierarchy** — clear visual hierarchy with weight and size, not color alone
 7. **Functional first** — every design decision serves usability, beauty is the byproduct of good function
 
+### Admin & Internal Page Consistency
+
+When redesigning or restyling public-facing pages, **always apply the same design system to admin pages and internal interfaces** in the same pass. Admin panels, dashboards, login screens, and CMS interfaces must share the same typography, color tokens, spacing, and component styling as the rest of the application. A mismatch between public and admin UI feels unfinished and creates maintenance debt.
+
+**Checklist when applying a design system change:**
+- [ ] All public pages updated
+- [ ] Admin/dashboard pages updated (headings, cards, forms, tables)
+- [ ] Login/auth screens updated
+- [ ] Internal tools and CMS pages updated
+- [ ] Email templates reviewed for consistency (if applicable)
+
 ---
 
 ## Real-Time Data Patterns

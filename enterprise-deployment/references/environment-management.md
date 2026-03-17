@@ -15,6 +15,32 @@ Staging must mirror production as closely as possible: same Docker images, same 
 
 ---
 
+## Remote .env Protection (SCP/SSH Deployments)
+
+When deploying via SCP to a VPS, **never overwrite the remote `.env` file**. The remote server has its own environment configuration with production secrets, database URLs, and API keys that differ from local development.
+
+### Safe SCP Deployment Pattern
+
+```bash
+# CORRECT: Transfer only build artifacts, never .env
+scp -i $KEY build.tar.gz user@server:/app/
+ssh -i $KEY user@server "cd /app && tar -xzf build.tar.gz && rm build.tar.gz && systemctl restart myapp"
+
+# WRONG: Transferring entire project directory (includes .env)
+scp -r -i $KEY ./ user@server:/app/    # NEVER DO THIS
+
+# WRONG: Explicitly sending .env
+scp -i $KEY .env user@server:/app/.env  # NEVER DO THIS
+```
+
+### Rules
+- **Build artifacts only**: Transfer compiled output (`.next/standalone`, `dist/`, etc.), not source or config
+- **Schema separately**: If DB schema changed, transfer `schema.prisma` alone and run migrations on server
+- **Verify exclusion**: Before any `scp` command, mentally confirm `.env` is not in the transfer set
+- **If schema changes**: Transfer schema file alone, then run `prisma db push` on the server
+
+---
+
 ## Secrets Management
 
 ### Azure: Key Vault (Enterprise)
