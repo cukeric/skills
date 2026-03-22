@@ -16,5 +16,5 @@ date	session_id	skill	event_type	detail	severity
 2026-03-21	ses_002	enterprise-security	gap	no GDPR-specific reference existed (cookie consent, data export, account deletion, key rotation patterns) — built ad-hoc	high
 2026-03-21	ses_002	enterprise-backend	gap	Stripe automatic_tax not documented in payments-stripe.md — had to research live	medium
 2026-03-21	ses_002	skill-self-improving	correction	skill accidentally deleted during 155→30 skill cleanup — user had to point this out in next session	high
-2026-03-21	ses_002	worktree-agents	gap	all 8 worktree agents hit Write/Edit/Bash permission blocks — no skill documents worktree agent permission inheritance	high
+2026-03-21	ses_002	worktree-agents	correction	all 8 worktree agents hit permission blocks — fixed by adding blanket Read/Edit/Write/Glob/Grep to settings.json permissions.allow	high
 2026-03-22	ses_003	skill-self-improving	skill_change	restored from skills repo; added gdpr-privacy-compliance.md to enterprise-security; added Stripe Tax to payments-stripe.md	medium
