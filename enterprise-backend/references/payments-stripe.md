@@ -433,6 +433,48 @@ describe('Payments', () => {
 
 ---
 
+## Stripe Tax (Automatic Tax Collection)
+
+For SaaS businesses that need to collect sales tax, VAT, GST, or HST:
+
+### Setup
+
+1. Enable Stripe Tax in Dashboard → Settings → Tax
+2. Set your business origin address (determines nexus/registration)
+3. Add tax registrations for jurisdictions where you're required to collect
+
+### Checkout Integration
+
+```typescript
+// Add automatic_tax to Checkout session creation
+const session = await stripe.checkout.sessions.create({
+  mode: 'subscription', // or 'payment'
+  line_items: [{ price: priceId, quantity: 1 }],
+  automatic_tax: { enabled: true },
+  customer_update: { address: 'auto' }, // Collect address for tax calculation
+  success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${baseUrl}/pricing`,
+})
+```
+
+### Key Decisions
+
+| Scenario | Approach |
+|---|---|
+| Canadian business, domestic customers | HST/GST via automatic_tax, register in Stripe Tax settings |
+| Canadian business, international customers | Exempt until threshold requires registration in that jurisdiction |
+| US-based SaaS | Register in states where you have nexus, enable automatic_tax |
+| EU-based SaaS | VAT via automatic_tax, handle reverse charge for B2B |
+
+### Important (2026)
+
+- **Before April 29, 2026**: Subscription transactions always use tax-excluded pricing regardless of account-level settings
+- **After April 29, 2026**: All transactions follow your Stripe tax settings
+- Always test with addresses from different tax jurisdictions before going live
+- For refunds: fully reverse the transaction rather than partial tax refunds to keep reporting accurate
+
+---
+
 ## Security Checklist
 
 - [ ] Stripe secret key in environment variable, never in code

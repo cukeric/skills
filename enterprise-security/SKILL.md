@@ -1,6 +1,6 @@
 ---
 name: enterprise-security
-description: Explains how to implement application security, compliance, and defensive patterns with enterprise standards. Trigger on ANY mention of security audit, OWASP, vulnerability, penetration test, pen test, dependency scanning, Snyk, Trivy, npm audit, CSP, Content Security Policy, CORS, security headers, HSTS, X-Frame-Options, XSS, CSRF, SQL injection, SSRF, IDOR, SOC2, SOC 2, HIPAA, PCI-DSS, PCI DSS, ISO 27001, compliance, security review, secrets management, secrets rotation, Vault, Doppler, security policy, WAF, rate limiting, brute force, zero trust, SBOM, supply chain security, code scanning, SAST, DAST, or any request requiring security hardening, compliance preparation, or vulnerability assessment.
+description: Explains how to implement application security, compliance, and defensive patterns with enterprise standards. Trigger on ANY mention of security audit, OWASP, vulnerability, penetration test, pen test, dependency scanning, Snyk, Trivy, npm audit, CSP, Content Security Policy, CORS, security headers, HSTS, X-Frame-Options, XSS, CSRF, SQL injection, SSRF, IDOR, SOC2, SOC 2, HIPAA, PCI-DSS, PCI DSS, ISO 27001, GDPR, CCPA, CPRA, PIPEDA, LGPD, privacy compliance, cookie consent, data export, data portability, right to erasure, account deletion, data retention, encryption key rotation, compliance, security review, secrets management, secrets rotation, Vault, Doppler, security policy, WAF, rate limiting, brute force, zero trust, SBOM, supply chain security, code scanning, SAST, DAST, or any request requiring security hardening, compliance preparation, privacy implementation, or vulnerability assessment.
 ---
 
 # Enterprise Security & Compliance Skill
@@ -28,6 +28,10 @@ Every application must be secured against known attack vectors and comply with a
 ### Compliance Frameworks
 
 - `references/compliance-soc2-hipaa.md` — SOC2 Type II controls, HIPAA technical safeguards, PCI-DSS requirements, audit preparation
+
+### GDPR & Privacy Compliance
+
+- `references/gdpr-privacy-compliance.md` — Cookie consent implementation, data export/portability, account deletion cascades, app-level encryption key rotation, GDPR/CCPA/PIPEDA requirements
 
 ### Secrets Management
 
