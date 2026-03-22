@@ -132,6 +132,96 @@ export function AnalyticsDashboard({ initialData }: { initialData: AnalyticsData
 }
 ```
 
+> **Serialization boundary**: Props passed from server to client components must be serializable (JSON-safe). Functions, React components, class instances, Symbols, and Dates **cannot** cross this boundary. Build error: `"Functions cannot be passed directly to Client Components"`.
+
+**Pattern: Component/function references across the boundary — use string IDs + client-side lookup**
+```tsx
+// data.ts — shared (imported by both server and client)
+export type IconName = "cpu" | "rocket" | "heart";
+export interface Item {
+  name: string;
+  icon: IconName;  // ← string, NOT a component reference
+}
+
+// client-component.tsx — resolves icons client-side
+'use client'
+import { Cpu, Rocket, Heart } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { IconName } from "@/data";
+
+const ICON_MAP: Record<IconName, LucideIcon> = {
+  cpu: Cpu, rocket: Rocket, heart: Heart,
+};
+
+export function ItemCard({ item }: { item: Item }) {
+  const Icon = ICON_MAP[item.icon];
+  return <Icon className="w-6 h-6" />;
+}
+```
+
+### Static Generation Patterns (Next.js 15+/16)
+
+**Dynamic routes with `generateStaticParams` + `generateMetadata`:**
+```tsx
+// src/app/projects/[slug]/page.tsx
+import type { Metadata } from "next";
+
+// Next.js 15+: params is a Promise
+interface PageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateStaticParams() {
+  const slugs = getAllSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;  // ← must await
+  const item = getBySlug(slug);
+  if (!item) return {};
+  return {
+    title: item.title,
+    description: item.description,
+    openGraph: { title: item.title, description: item.description },
+  };
+}
+
+export default async function Page({ params }: PageProps) {
+  const { slug } = await params;  // ← must await
+  const item = getBySlug(slug);
+  if (!item) notFound();
+  return <ClientLayout item={item} />;
+}
+```
+
+### Tailwind CSS v4 (No Config File)
+
+Next.js 16+ ships with Tailwind CSS v4 which uses `@theme inline` in CSS instead of `tailwind.config.js`:
+
+```css
+/* globals.css */
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-accent-primary: var(--accent-primary);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "DM Serif Display", Georgia, serif;
+}
+```
+
+No `tailwind.config.ts` file needed. All theme tokens are CSS custom properties.
+
+### Turbopack Dev Server Issues
+
+Next.js 16 uses Turbopack by default for `next dev`. Known issues:
+
+- **Panic loop with infinite page reloads**: Clear `.next` directory (`rm -rf .next`) and restart
+- **Lock file conflicts**: If `is another instance of next dev running?`, kill stale processes and remove `.next/dev/lock`
+- **Turbopack is dev-only**: Production builds (`next build`) always use Webpack — if dev fails but build succeeds, the issue is Turbopack-specific
+
 ### Middleware (Auth Guard)
 
 ```tsx
