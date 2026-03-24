@@ -18,3 +18,14 @@ date	session_id	skill	event_type	detail	severity
 2026-03-21	ses_002	skill-self-improving	correction	skill accidentally deleted during 155→30 skill cleanup — user had to point this out in next session	high
 2026-03-21	ses_002	worktree-agents	correction	all 8 worktree agents hit permission blocks — fixed by adding blanket Read/Edit/Write/Glob/Grep to settings.json permissions.allow	high
 2026-03-22	ses_003	skill-self-improving	skill_change	restored from skills repo; added gdpr-privacy-compliance.md to enterprise-security; added Stripe Tax to payments-stripe.md	medium
+2026-03-24	ses_004	enterprise-frontend	success	glassmorphism dashboard UI with oklch tokens, skeleton loading, empty states — frontend-artisan output accepted without corrections	low
+2026-03-24	ses_004	enterprise-backend	success	NextAuth v5 Credentials + JWT, API routes with org-scoped auth, review endpoint with optimistic locking — all correct after code review fixes	low
+2026-03-24	ses_004	enterprise-database	success	Prisma $transaction with optimistic locking, cross-org data isolation via actor filtering — pattern worked first try	low
+2026-03-24	ses_004	frontend-design	success	frontend-artisan designed full glassmorphism system (brand indigo, rp-glass, rp-shimmer) — user gave full design control, no corrections	low
+2026-03-24	ses_004	enterprise-frontend	gap	shadcn/ui monorepo setup not in skills — init failed, required manual components.json workaround	medium
+2026-03-24	ses_004	enterprise-backend	gap	NextAuth v5 beta not covered in auth-sso-mfa.md — built Credentials+JWT pattern from scratch	medium
+2026-03-24	ses_004	enterprise-database	gap	Prisma optimistic locking with $transaction not in orm-guide.md — only conceptual mention existed	medium
+2026-03-24	ses_004	none	correction	hallucinated "no CI workflow configured" when .github/workflows/ci.yml existed — Glob missed dotfile dir, trusted single tool result	high
+2026-03-24	ses_004	enterprise-frontend	skill_change	added shadcn/ui monorepo setup section to react-nextjs.md (manual components.json, cn() helper)	medium
+2026-03-24	ses_004	enterprise-backend	skill_change	added NextAuth v5 section to auth-sso-mfa.md (Credentials provider, JWT strategy, server guards)	medium
+2026-03-24	ses_004	enterprise-database	skill_change	added Prisma optimistic locking $transaction pattern to orm-guide.md	medium
