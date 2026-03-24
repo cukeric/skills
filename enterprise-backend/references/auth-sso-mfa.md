@@ -767,6 +767,97 @@ export function requirePermission(permission: string) {
 
 ---
 
+## NextAuth v5 (next-auth@beta) — Next.js App Router
+
+NextAuth v5 is a major rewrite for App Router compatibility. Key differences from v4: single `auth.ts` config file, JWT/session callbacks for role extension, `auth()` function for server-side session access.
+
+### Setup
+
+```bash
+pnpm add next-auth@beta @auth/prisma-adapter
+```
+
+### Configuration
+
+```typescript
+// src/lib/auth.ts
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import { verify } from "argon2";
+import { prisma } from "@/lib/prisma";
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [
+    Credentials({
+      credentials: { email: {}, password: {} },
+      authorize: async (credentials) => {
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+        if (!user?.passwordHash) return null;
+        const valid = await verify(user.passwordHash, credentials.password as string);
+        if (!valid) return null;
+        return { id: user.id, email: user.email, name: user.name, role: user.role, orgId: user.orgId };
+      },
+    }),
+  ],
+  session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) { token.role = user.role; token.orgId = user.orgId; }
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) { session.user.role = token.role; session.user.orgId = token.orgId; }
+      return session;
+    },
+  },
+  pages: { signIn: "/login" },
+});
+```
+
+### Route Handler & Middleware
+
+```typescript
+// src/app/api/auth/[...nextauth]/route.ts
+export { handlers as GET, handlers as POST } from "@/lib/auth";
+
+// middleware.ts — protects pages AND API routes
+export { auth as middleware } from "@/lib/auth";
+export const config = {
+  matcher: ["/overview/:path*", "/batches/:path*", "/api/((?!auth).*)"],
+};
+```
+
+### Server-Side Auth Guards
+
+```typescript
+// src/lib/auth-guard.ts
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export async function requireAuth() {
+  const session = await auth();
+  if (!session) redirect("/login");
+  return session;
+}
+
+export async function requireRole(role: string) {
+  const session = await requireAuth();
+  if (session.user?.role !== role) redirect("/unauthorized");
+  return session;
+}
+```
+
+### Key Gotchas
+
+- **JWT strategy required for Credentials provider** — database sessions don't work with Credentials.
+- **Extend JWT/session types** via `next-auth.d.ts` module augmentation for custom fields (role, orgId).
+- **Edge middleware** — `auth()` works in middleware but Prisma doesn't run on Edge. Keep DB queries in API routes/server components.
+- **`NEXTAUTH_SECRET`** and **`NEXTAUTH_URL`** env vars are required.
+
+---
+
 ## Standalone Admin Auth (Separate from Main Auth)
 
 When building an internal admin dashboard that must NOT share the main application's auth system (e.g., NextAuth, Clerk, Supabase Auth), use a standalone cookie-based auth with its own credentials.

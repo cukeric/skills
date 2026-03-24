@@ -175,7 +175,27 @@ const nextPage = await prisma.order.findMany({
   cursor: { id: lastSeenOrderId },
   orderBy: { createdAt: 'desc' },
 });
+
+// Optimistic locking with interactive transaction
+// Add a `version Int @default(0)` field to the model
+const result = await prisma.$transaction(async (tx) => {
+  const updated = await tx.order.updateMany({
+    where: { id: orderId, version: currentVersion },
+    data: { status: 'COMPLETED', version: { increment: 1 } },
+  });
+  if (updated.count === 0) {
+    throw new Error("OPTIMISTIC_LOCK_CONFLICT");
+  }
+  // Additional writes in same transaction (audit log, related records)
+  const log = await tx.auditLog.create({
+    data: { orderId, eventType: 'order.completed', actor: userId },
+  });
+  return { updated, log };
+});
+// Catch OPTIMISTIC_LOCK_CONFLICT → return 409 Conflict to client
 ```
+
+**Optimistic locking pattern:** Use `updateMany` with a `version` check (not `update`, which throws on no match). Wrap in `$transaction(async (tx) => ...)` for atomicity — if any step fails, all writes roll back. The client should handle 409 by refetching and retrying.
 
 ### Connection Management
 

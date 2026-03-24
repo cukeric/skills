@@ -195,6 +195,47 @@ export default async function Page({ params }: PageProps) {
 }
 ```
 
+### shadcn/ui in Monorepos
+
+`pnpm dlx shadcn@latest init` often fails to detect the framework in monorepos. Create `components.json` manually:
+
+```json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/app/globals.css",
+    "baseColor": "zinc",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  }
+}
+```
+
+Then add components individually — this works even when `init` fails:
+
+```bash
+pnpm dlx shadcn@latest add button card dialog tooltip --yes
+```
+
+**Required utility:** shadcn/ui expects a `cn()` helper in `@/lib/utils`:
+
+```typescript
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
+```
+
 ### Tailwind CSS v4 (No Config File)
 
 Next.js 16+ ships with Tailwind CSS v4 which uses `@theme inline` in CSS instead of `tailwind.config.js`:
