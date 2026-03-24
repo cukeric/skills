@@ -216,6 +216,87 @@ export function errorHandler(error: FastifyError, req: FastifyRequest, reply: Fa
 }
 ```
 
+### Request Context with AsyncLocalStorage
+
+Use Node.js `AsyncLocalStorage` to propagate request-scoped data (user identity, correlation IDs, tenant info) through the entire request pipeline without passing context through every function parameter. This is essential for middleware → service → repository pipelines where intermediate layers shouldn't need to know about request context.
+
+```typescript
+// src/context/request-context.ts
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+export interface RequestContextData {
+  userId: string;
+  orgId: string;
+  correlationId: string;
+}
+
+export const requestContext = new AsyncLocalStorage<RequestContextData>();
+
+export function runWithContext<T>(ctx: RequestContextData, fn: () => T | Promise<T>): T | Promise<T> {
+  return requestContext.run(ctx, fn);
+}
+
+export function requireRequestContext(): RequestContextData {
+  const ctx = requestContext.getStore();
+  if (!ctx) throw new Error('Request context not available — called outside of request scope');
+  return ctx;
+}
+```
+
+Wrap all request handling in `runWithContext()`:
+
+```typescript
+// In Express middleware or route handler:
+app.use('/api', authMiddleware, (req, res, next) => {
+  runWithContext({ userId: req.user.id, orgId: req.user.orgId, correlationId: req.id }, () => {
+    next();
+  });
+});
+```
+
+Any downstream function can call `requireRequestContext()` to access the request-scoped data without it being passed as a parameter. Works across async boundaries including database calls, queue handlers, and third-party SDK callbacks.
+
+### Repository Pattern for Testable Data Access
+
+Decouple business logic from ORM by defining repository interfaces. Unit tests mock the interface, not the ORM. Integration tests use real implementations.
+
+```typescript
+// src/repositories/types.ts — Interfaces only, no ORM imports
+export interface UserRecord {
+  id: string;
+  email: string;
+  name: string;
+  orgId: string;
+}
+
+export interface UserRepository {
+  findById(id: string): Promise<UserRecord | null>;
+  findByEmail(email: string): Promise<UserRecord | null>;
+  create(input: { email: string; name: string; orgId: string }): Promise<UserRecord>;
+}
+
+// src/repositories/prisma.ts — Prisma implementation
+export function createPrismaUserRepo(prisma: PrismaClient): UserRepository {
+  return {
+    findById: (id) => prisma.user.findUnique({ where: { id }, select: { id: true, email: true, name: true, orgId: true } }),
+    findByEmail: (email) => prisma.user.findUnique({ where: { email }, select: { id: true, email: true, name: true, orgId: true } }),
+    create: (input) => prisma.user.create({ data: input, select: { id: true, email: true, name: true, orgId: true } }),
+  };
+}
+```
+
+In tests, create a mock that satisfies the interface:
+
+```typescript
+const mockUserRepo: UserRepository = {
+  findById: vi.fn().mockResolvedValue({ id: '1', email: 'a@b.com', name: 'Test', orgId: 'org1' }),
+  findByEmail: vi.fn().mockResolvedValue(null),
+  create: vi.fn(),
+};
+```
+
+This pattern uses factory functions (not classes) for lightweight DI. Pass repositories into service constructors or factory functions.
+
 ---
 
 ## NestJS (Large Teams / Complex Architecture)

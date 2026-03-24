@@ -78,6 +78,18 @@ export default defineConfig({
       '@tests': path.resolve(__dirname, './tests'),
     },
 
+    // Monorepo ESM resolution: Vitest 4+ uses Node's native ESM loader
+    // which does NOT fall back from .js to .ts for relative imports.
+    // If tests import from other workspace packages via relative paths
+    // (e.g., ../../packages/proxy/src/auth/agent-auth.js), add a regex alias:
+    //
+    // alias: [
+    //   ...other aliases,
+    //   { find: /^(\.\.\/)+packages\/(.+)\.js$/, replacement: path.resolve(__dirname, 'packages/$2.ts') },
+    // ]
+    //
+    // This rewrites .js extensions to .ts at test time, matching TypeScript source files.
+
     // Setup files (run before all tests)
     setupFiles: ['./tests/setup.ts'],
   },

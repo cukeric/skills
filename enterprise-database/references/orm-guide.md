@@ -122,6 +122,22 @@ npx prisma migrate deploy
 npx prisma generate
 ```
 
+### CI / Monorepo: Always Run `prisma generate` Before Build
+
+In CI environments and monorepos, `@prisma/client` requires `prisma generate` to produce TypeScript types before `tsc` compilation. Unlike local dev (where `node_modules/.prisma/client` persists between runs), CI starts from a clean `node_modules` after each `pnpm install`.
+
+**Fix:** Include `prisma generate` in the package's build script:
+
+```json
+{
+  "scripts": {
+    "build": "prisma generate && tsc"
+  }
+}
+```
+
+This ensures the Prisma client is generated before TypeScript compilation in any environment — local, CI, or Docker. Forgetting this is the #1 cause of "Cannot find module '@prisma/client'" errors in CI pipelines.
+
 ### Query Patterns
 
 ```typescript
