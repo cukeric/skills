@@ -27,6 +27,7 @@ Read this SKILL.md first for pattern selection, then consult the relevant refere
 
 ### Local / Offline AI
 9. `references/local-offline-embeddings.md` — `@huggingface/transformers` (transformers.js): ONNX/WASM in Node.js, model selection, batch API shape (critical gotcha), quantized models (q8), cosine similarity, lazy load pattern for MCP servers, performance benchmarks by hardware
+10. `references/vector-compression.md` — Compact vector representations: scalar quantization (int8, 4×), binary (1-bit, 32×), product quantization, PolarQuant + QJL (TurboQuant, no training, ≥0.95 accuracy), compression comparison table, numAngles calculation, RRF hybrid search
 
 ---
 
