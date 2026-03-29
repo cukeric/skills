@@ -29,3 +29,12 @@ date	session_id	skill	event_type	detail	severity
 2026-03-24	ses_004	enterprise-frontend	skill_change	added shadcn/ui monorepo setup section to react-nextjs.md (manual components.json, cn() helper)	medium
 2026-03-24	ses_004	enterprise-backend	skill_change	added NextAuth v5 section to auth-sso-mfa.md (Credentials provider, JWT strategy, server guards)	medium
 2026-03-24	ses_004	enterprise-database	skill_change	added Prisma optimistic locking $transaction pattern to orm-guide.md	medium
+2026-03-29	ses_005	none	gap	no skill covers local WASM embeddings with @huggingface/transformers — transformers.js batch API shape unknown, built pipeline ad-hoc	high
+2026-03-29	ses_005	none	gap	no skill covers Claude Code MCP config mgmt — global ~/.claude.json vs project .mcp.json, claude mcp add -s user command	high
+2026-03-29	ses_005	enterprise-database	gap	no guidance on cross-entity FK strategy for mixed-type joins in SQLite — FK blocked section inserts, app-managed integrity needed	medium
+2026-03-29	ses_005	enterprise-ai-applications	correction	assumed transformers.js batch() returns Array<{data}> — actually returns flat Tensor{data, dims}; self-corrected after NOT NULL error	low
+2026-03-29	ses_005	enterprise-frontend	success	CV optional interface fields + conditional rendering pattern accepted first-try, clean build	low
+2026-03-29	ses_005	enterprise-database	success	SQLite WAL + versioned schema migration (v1→v2→v3 additive then DROP+recreate) worked cleanly	low
+2026-03-29	ses_005	enterprise-ai-applications	skill_change	created local-offline-embeddings.md: transformers.js batch API shape, q8 models, lazy load pattern	high
+2026-03-29	ses_005	mcp-builder	skill_change	created claude-code-mcp-config.md: ~/.claude.json vs .mcp.json scopes, claude mcp CLI, global vs project install	high
+2026-03-29	ses_005	enterprise-database	skill_change	created sqlite-local-tools.md: better-sqlite3, WAL mode, schema versioning, cross-entity FK strategy, FTS5	medium

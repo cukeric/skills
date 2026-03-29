@@ -25,6 +25,9 @@ Read this SKILL.md first for pattern selection, then consult the relevant refere
 7. `references/raw-sdk-patterns.md` — No-framework: direct API tool use, streaming, structured output (JSON mode), batch processing, function calling
 8. `references/evaluation-testing.md` — RAG evaluation (faithfulness, relevance), agent testing, LLM-as-judge, regression benchmarks, A/B testing
 
+### Local / Offline AI
+9. `references/local-offline-embeddings.md` — `@huggingface/transformers` (transformers.js): ONNX/WASM in Node.js, model selection, batch API shape (critical gotcha), quantized models (q8), cosine similarity, lazy load pattern for MCP servers, performance benchmarks by hardware
+
 ---
 
 ## Pattern Selection: What Should You Build?
