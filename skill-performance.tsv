@@ -38,3 +38,5 @@ date	session_id	skill	event_type	detail	severity
 2026-03-29	ses_005	enterprise-ai-applications	skill_change	created local-offline-embeddings.md: transformers.js batch API shape, q8 models, lazy load pattern	high
 2026-03-29	ses_005	mcp-builder	skill_change	created claude-code-mcp-config.md: ~/.claude.json vs .mcp.json scopes, claude mcp CLI, global vs project install	high
 2026-03-29	ses_005	enterprise-database	skill_change	created sqlite-local-tools.md: better-sqlite3, WAL mode, schema versioning, cross-entity FK strategy, FTS5	medium
+2026-03-30	ses_006	enterprise-frontend	skill_change	created shadcn-semantic-tokens.md: wash background badge rule, destructive-badge-foreground split, dark mode foreground lightness, root token audit	high
+2026-03-30	ses_006	workflow	correction	harness removed permanently — skeptic-evaluator burned 600k tokens on M5 with diminishing returns, broke .next cache via playwright install	critical
