@@ -8,6 +8,11 @@ date	session_id	skill	event_type	detail	severity
 2026-03-16	ses_001	enterprise-deployment	correction	initially attempted to include .env in deployment — user corrected "the env on vps is correct.. do not overwrite it"	medium
 2026-03-16	ses_001	copywriting	skill_change	added content-credibility-audit.md reference for solo-founder/small-team content auditing; updated description triggers	medium
 2026-03-16	ses_001	enterprise-deployment	skill_change	added remote .env protection section to environment-management.md reference	medium
+2026-04-06	ses_5af3claw_003	enterprise-security	gap	dependency-scanning.md had no coverage for Semgrep Supply Chain, cargo audit, or Rust dependency upgrade workflow — all needed this session	high
+2026-04-06	ses_5af3claw_003	enterprise-security	skill_change	added Semgrep Supply Chain section, cargo audit section, Rust dep upgrade strategy, and SARIF gotchas to dependency-scanning.md	high
+2026-04-06	ses_5af3claw_003	enterprise-security	success	CVE triage workflow (CSV analysis → severity → version check → parallel fix → verify) worked cleanly for 6 findings	low
+2026-04-06	ses_5af3claw_003	ship	success	/ship gate checks + retry push worked first attempt, all 5 gates passed	low
+2026-04-06	ses_5af3claw_003	superpowers:dispatching-parallel-agents	success	parallel agent dispatch for wasmtime + biscuit-auth upgrades — both completed successfully with zero conflicts	low
 2026-03-16	ses_001	enterprise-frontend	skill_change	added admin/internal page consistency checklist to Design System section	medium
 2026-03-21	ses_002	enterprise-backend	success	11 Phase 6 features: cookie consent, Stripe tax, referral program, account deletion, blog MDX, key rotation — all accepted without corrections	low
 2026-03-21	ses_002	enterprise-security	success	GDPR cookie consent, account deletion cascade (Stripe + filesystem + DB), dual-key encryption rotation — all patterns correct	low
@@ -40,3 +45,8 @@ date	session_id	skill	event_type	detail	severity
 2026-03-29	ses_005	enterprise-database	skill_change	created sqlite-local-tools.md: better-sqlite3, WAL mode, schema versioning, cross-entity FK strategy, FTS5	medium
 2026-03-30	ses_006	enterprise-frontend	skill_change	created shadcn-semantic-tokens.md: wash background badge rule, destructive-badge-foreground split, dark mode foreground lightness, root token audit	high
 2026-03-30	ses_006	workflow	correction	harness removed permanently — skeptic-evaluator burned 600k tokens on M5 with diminishing returns, broke .next cache via playwright install	critical
+2026-04-04	ses_007	enterprise-devx-monorepo	correction	skill did not exist — monorepo setup ran on raw judgment, no pre-push gate enforced, caused 5+ piecemeal CI fix commits	critical
+2026-04-04	ses_007	enterprise-devx-monorepo	skill_change	created skill with pre-push gate, package script standards, CI job matrix, canary scan fix, agent dispatch guidance	critical
+2026-04-04	ses_007	none	correction	agents not dispatched for parallelizable monorepo scaffold streams — full-stack-architect and code-reviewer never invoked	high
+2026-04-04	ses_007	none	correction	skill invocation skipped for entire session — operated in default mode despite clear matching triggers (monorepo, CI, Turborepo, Biome)	critical
+2026-04-04	ses_007	none	gap	no project CLAUDE.md in 5AF3Claw — missing explicit skill routing table caused skill bypass	high

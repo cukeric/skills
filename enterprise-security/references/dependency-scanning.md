@@ -10,6 +10,8 @@
 | **Socket.dev** | SaaS | Supply chain attacks, typosquatting | Free tier |
 | **pip audit** | Built-in | Python projects | Free |
 | **Dependabot** | GitHub | Automated update PRs | Free |
+| **Semgrep Supply Chain** | SaaS + CLI | SAST + supply chain, reachability analysis, SARIF | Free tier |
+| **cargo audit** | CLI | Rust crate vulnerability scanning (RustSec DB) | Free |
 
 ---
 
@@ -143,6 +145,117 @@ jobs:
 
 ---
 
+## Semgrep Supply Chain
+
+Semgrep Supply Chain combines SAST (static analysis) with dependency vulnerability scanning. It maps CVEs to your actual codebase and provides reachability analysis (does your code actually call the vulnerable function?).
+
+### Setup
+
+1. Create account at semgrep.dev, connect your GitHub org
+2. Generate an API token: Settings → Tokens → API tokens
+3. Add `SEMGREP_APP_TOKEN` as a GitHub Actions secret
+
+### CI Integration
+
+```yaml
+# .github/workflows/security.yml
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Run Semgrep SAST
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          semgrep scan \
+            --config p/typescript \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --sarif --output semgrep.sarif \
+            || true  # Don't fail before SARIF is written
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('semgrep.sarif') != ''
+        with:
+          sarif_file: semgrep.sarif
+```
+
+**Key gotchas (learned from 5AF3Claw):**
+- Never use `--error` flag with `--sarif` — if Semgrep exits non-zero before writing the SARIF file, the upload step fails with nothing to upload
+- Use `|| true` to ensure the SARIF file is always created, then parse it separately for error counting
+- `upload-sarif@v3` is deprecated — use `@v4`
+- Private repos need `SEMGREP_APP_TOKEN` to fetch rule configs
+- Add `contents: read` permission for the job
+
+### Triage Supply Chain Findings
+
+Semgrep exports supply chain findings as CSV from semgrep.dev. Triage workflow:
+
+1. **Sort by severity** — Critical/High first
+2. **Check EPSS score** — Low EPSS (< 0.1%) means low exploitability in the wild
+3. **Check reachability** — "Reachable" findings are higher priority than "No Reachability Analysis"
+4. **Check available fix** — `cargo search <crate>` or `npm view <pkg> version` for latest
+5. **Assess breaking changes** — Major version bumps may require API migration
+6. **Parallel fix** — Independent packages can be upgraded in parallel by separate agents
+
+---
+
+## cargo audit (Rust)
+
+```bash
+# Install
+cargo install cargo-audit
+
+# Scan for vulnerabilities
+cargo audit
+
+# JSON output for CI
+cargo audit --json
+
+# Fix by bumping Cargo.lock (non-breaking only)
+cargo audit fix
+```
+
+### CI Integration
+
+```yaml
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run audit
+        run: cargo audit
+```
+
+### Rust Dependency Upgrade Strategy
+
+When `cargo audit` or Semgrep flags a Rust crate CVE:
+
+1. Check latest version: `cargo search <crate> --limit 1`
+2. Check if it's a major bump (breaking API changes expected)
+3. Read the crate's CHANGELOG for migration guide
+4. Update version in `Cargo.toml` (workspace root for workspace deps)
+5. Run `cargo check -p <package>` to find compilation errors
+6. Fix API breakage — common patterns:
+   - Builder pattern changes (consuming vs mutating)
+   - New required parameters on existing functions
+   - Module renames or reorganization
+   - Error type changes
+7. Run `cargo test -p <package>` to verify
+8. Run `cargo test --workspace` to catch cross-package issues
+
+---
+
 ## SBOM (Software Bill of Materials)
 
 ### Why SBOM?
@@ -254,12 +367,14 @@ updates:
 
 ## Dependency Security Checklist
 
-- [ ] `npm audit` / `pip audit` runs in CI (blocks on high/critical)
-- [ ] Snyk or Trivy integrated for deep scanning
+- [ ] `npm audit` / `pip audit` / `cargo audit` runs in CI (blocks on high/critical)
+- [ ] Snyk, Trivy, or Semgrep Supply Chain integrated for deep scanning
 - [ ] Secret detection in pre-commit hooks
 - [ ] SBOM generated for each release
 - [ ] Dependabot or Renovate configured for automated updates
-- [ ] Lockfiles committed and reviewed in PRs
+- [ ] Lockfiles committed and reviewed in PRs (including Cargo.lock)
 - [ ] New dependencies reviewed before adding (check downloads, maintainers, last update)
 - [ ] Critical vulnerabilities have < 24h fix SLA
 - [ ] Vulnerability exceptions documented with expiration dates
+- [ ] Semgrep SARIF upload configured correctly (use `|| true`, not `--error`)
+- [ ] Rust crates scanned alongside npm packages in CI
