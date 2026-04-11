@@ -74,6 +74,24 @@ Read this SKILL.md first for the overall process, then consult references as nee
 
 ---
 
+## Phase 0: Cross-Session Context Recovery (MANDATORY FIRST STEP)
+
+**Goal:** Before analyzing the current session, understand what happened in ALL previous sessions so you don't repeat known issues or miss recurring patterns.
+
+**Read these files in order:**
+
+1. `~/.claude/memory/global/reference/improvement-backlog.md` — Persistent backlog of unresolved skill gaps, agent issues, hook problems. Check if any open items were addressed this session.
+2. `~/.claude/skills/skill-performance.tsv` — Full history of corrections, gaps, successes, and skill changes across ALL sessions. Look for patterns: recurring gaps, skills that keep getting corrected, areas with zero coverage.
+3. `_dev/_memory/<project>/` — Session memory files for the current project. Scan recent entries for blockers, next actions, and self-improve signals from previous sessions.
+
+**Output:** A brief "Cross-Session Context" section noting:
+- How many prior sessions exist for this project
+- Any open backlog items that were addressed this session
+- Any recurring patterns (same skill corrected 3+ times = systemic issue)
+- New items to add to the backlog from this session
+
+---
+
 ## Phase 1: Session Analysis
 
 **Goal:** Understand what happened during the session so you can identify what the skill library should learn from it.
@@ -294,6 +312,8 @@ This meta-skill operates **on** all other skills. It must understand the structu
 
 Before considering any self-improvement cycle complete:
 
+- [ ] Cross-session context recovered (improvement-backlog.md, skill-performance.tsv, project memory)
+- [ ] Improvement backlog updated (new items added, resolved items archived)
 - [ ] Session fully analysed (conversation, code changes, errors, patterns)
 - [ ] Skill gaps identified and categorized
 - [ ] Existing skills audited for accuracy, freshness, and completeness
