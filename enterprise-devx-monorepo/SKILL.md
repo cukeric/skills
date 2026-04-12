@@ -30,8 +30,10 @@ Before the FIRST `git push` on any new monorepo, or after ANY change to `.github
 # 1. Generate lockfile (CI uses --frozen-lockfile; missing lockfile = total failure)
 pnpm install
 
-# 2. Fix all formatting (Biome CI job fails on any diff)
-pnpm exec biome format --write .
+# 2. Fix ALL lint + format issues — MUST use --unsafe to catch useLiteralKeys, noConsoleLog, etc.
+#    biome check --write (without --unsafe) silently skips unsafe rules — CI will still fail!
+pnpm exec biome check --write --unsafe .
+git add -A  # ← RE-STAGE files Biome modified (critical — Biome changes must be committed)
 
 # 3. Catch all type errors before CI
 pnpm turbo run typecheck
@@ -53,6 +55,8 @@ pnpm turbo run test
 ```
 
 **All 6 must complete before pushing.** One clean push beats five fix commits.
+
+> **Step 2 note:** `biome check --write` (without `--unsafe`) only applies safe fixes. Rules like `useLiteralKeys`, `noConsoleLog`, and `noUnusedVariables` are "unsafe" and silently skipped. Always use `--unsafe` in the pre-push gate. After Biome runs, always `git add -A` to re-stage its changes — Biome-modified files that aren't committed will cause CI to fail with the exact errors you just "fixed" locally.
 
 ### SSH Remote — Always Use for Repos with Workflow Files
 

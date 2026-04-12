@@ -208,6 +208,59 @@ Every modification must:
 5. **Cross-reference** related skills using the Integration section pattern
 6. **Be verifiable:** Updated verification checklist items for any new content
 
+### Creating / Updating Hooks
+
+When the session revealed a behavior that should be enforced automatically:
+
+1. **Check if a hook already exists** in `~/.claude/hooks/` that covers the trigger
+2. **Hook events:** `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionStart`
+3. **Create the hook script** in `~/.claude/hooks/<name>.sh`
+4. **Register it in `~/.claude/settings.json`** under `hooks[].hooks[]`
+
+```json
+{
+  "hooks": [
+    {
+      "matcher": "Edit|Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ~/.claude/hooks/your-new-hook.sh"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Candidate hooks to create after each session:**
+- If Biome `--write` was run without `--unsafe` → hook to warn on `biome check --write .` without unsafe flag
+- If secrets were almost committed → strengthen `block-env-edits.sh` exclusion list
+- If a pre-push step was consistently skipped → add `PreToolUse(Bash)` hook that detects `git push` and reminds about gate
+
+### Creating / Updating Agents
+
+When the session revealed a task domain where a specialized agent would help:
+
+1. **Check if an agent already covers this domain** in `~/.claude/agents/`
+2. **Agent files** live in `~/.claude/agents/<name>.md`
+3. **Agent structure:** YAML frontmatter with `name`, `description`, `tools` list; then the agent's full system prompt
+
+```markdown
+---
+name: ci-debugger
+description: Use when CI jobs are failing and root cause analysis is needed across GitHub Actions logs, workflow YAML, package scripts, and CI-specific environment differences. Trigger on "CI is failing", "workflow failed", "GitHub Actions error", fix CI, ci fail, pipeline broken.
+tools: Read, Glob, Grep, Bash, WebFetch
+---
+
+# CI Debugger Agent
+
+## Purpose
+Systematically diagnose GitHub Actions failures...
+```
+
+**Candidate agent to create from this session:** A `ci-debugger` agent specialized for diagnosing GitHub Actions failures — knows how to read workflow YAML, understand job dependencies, spot Biome CI vs local inconsistencies, identify WASM build issues, and trace canary scan false positives.
+
 ### Creating New Skills
 
 When creating a new skill, follow `references/skill-creation-guide.md` exactly:

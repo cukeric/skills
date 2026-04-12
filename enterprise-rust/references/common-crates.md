@@ -606,6 +606,28 @@ impl TokenStore {
 
 **Do not use `JsValue::from_serde` / `JsValue::into_serde`** — these are deprecated in newer wasm-bindgen. Use `serde-wasm-bindgen` instead.
 
+### getrandom — WASM random number generation
+
+`getrandom` is a transitive dependency of `rand`, `biscuit-auth`, `ed25519-dalek`, and most crypto crates. On `wasm32-unknown-unknown`, it cannot use OS entropy by default — it needs the `js` feature to use `Web Crypto API` (browsers) or Node.js `crypto` module.
+
+**Without this, `wasm-pack build --target nodejs` fails with a linker or panic error.**
+
+```toml
+# In the WASM crate's Cargo.toml — target-specific so it only applies to WASM builds
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+```
+
+**When you need this:** Any crate compiled with `wasm-pack` that has `rand`, `ed25519-dalek`, `biscuit-auth`, or any other crate that uses `getrandom` as a transitive dependency. This is almost every cryptographic WASM crate.
+
+**getrandom version alignment:**
+- `rand 0.8` → `getrandom 0.2` → use `getrandom = { version = "0.2", features = ["js"] }`
+- `rand 0.9` → `getrandom 0.3` → use `getrandom = { version = "0.3", features = ["js"] }`
+
+**Diagnosis:** If `wasm-pack build` fails with:
+- `error[E0463]: can't find crate for 'core'` on a wasm32 target — missing `wasm32-unknown-unknown` rustup target
+- `RuntimeError: unreachable` or `getrandom: this target is not supported` at runtime — missing `js` feature
+
 ---
 
 ## Error Handling

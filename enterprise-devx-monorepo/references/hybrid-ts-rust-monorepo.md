@@ -427,6 +427,49 @@ ls packages/identity/tsconfig.json packages/cage/tsconfig.json 2>&1
 
 ---
 
+## WASM Build — getrandom js Feature
+
+Any Rust crate compiled to `wasm32-unknown-unknown` with `wasm-pack` that uses `rand`, `biscuit-auth`, `ed25519-dalek`, or any other crate that transitively depends on `getrandom 0.2` **MUST** include:
+
+```toml
+# In the WASM crate's Cargo.toml
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+```
+
+Without this, `wasm-pack build --target nodejs` fails with a `RuntimeError: unreachable` or linker error. The `js` feature enables `getrandom` to use Node.js `crypto` module for entropy on `wasm32-unknown-unknown` targets.
+
+---
+
+## CI Canary Scan — Adding Authorized Exclusions
+
+If a project uses canary token patterns for integrity checking (e.g., `5af3-canary-SOUL-{uuid}`), any CI canary grep scan may false-positive on:
+- E2E smoke tests that send a known canary UUID to verify detection works
+- Unit test fixtures that contain canary patterns as test data
+
+**To add an authorized exclusion**, append `--exclude="<filename>"` to the grep command in the CI canary scan step:
+
+```yaml
+# Before — will flag e2e-smoke.ts
+SOUL_CANARY=$(grep -r "5af3-canary-SOUL" . \
+  --include="*.ts" \
+  --exclude="schemas.ts" \
+  --exclude="schemas.test.ts" \
+  -l 2>/dev/null || true)
+
+# After — e2e-smoke.ts is an authorized test fixture
+SOUL_CANARY=$(grep -r "5af3-canary-SOUL" . \
+  --include="*.ts" \
+  --exclude="schemas.ts" \
+  --exclude="schemas.test.ts" \
+  --exclude="e2e-smoke.ts" \    # ← authorized: sends known UUID to verify detection
+  -l 2>/dev/null || true)
+```
+
+**Document the exclusion** in the CI YAML with a comment explaining WHY the file is authorized to contain canary patterns.
+
+---
+
 ## Quick Reference: Hybrid Monorepo Checklist
 
 ```
@@ -446,4 +489,7 @@ ls packages/identity/tsconfig.json packages/cage/tsconfig.json 2>&1
 □ [workspace.dependencies] in root Cargo.toml for shared dep versions
 □ Rust crate Cargo.toml versions match package.json stub versions
 □ No tsconfig.json files exist in Rust crate directories
+□ WASM crate has getrandom = { features = ["js"] } for wasm32 target
+□ biome check --write --unsafe run before push (not just --write)
+□ Biome-modified files re-staged and committed before git push
 ```

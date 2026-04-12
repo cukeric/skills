@@ -57,3 +57,13 @@ date	session_id	skill	event_type	detail	severity
 2026-04-11	ses_008	notebooklm	skill_change	installed notebooklm-py v0.3.4 via bundled skill install — did not build wrapper skill (correct pattern)	medium
 2026-04-11	ses_008	none	success	CLAUDE.md trim 26k→9k chars — preserved behavioral sections, removed all standards duplicated in skills	high
 2026-04-11	ses_008	none	gap	PEP 668 macOS Homebrew Python blocks pip3 install — resolved with --user flag; no documented pattern in any skill	low
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	correction	biome check --write (without --unsafe) doesn't fix useLiteralKeys/noConsoleLog — CI fails with same errors. Must use --unsafe pre-push.	high
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	correction	Biome-modified files must be git add -A + committed before push — forgot to restage caused 18-error CI failure	high
+2026-04-12	ses_5af3claw_004	enterprise-rust	gap	getrandom js feature not documented for wasm32-unknown-unknown — wasm-pack build fails without it when using rand/biscuit-auth/ed25519-dalek	high
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	gap	canary scan CI exclusion pattern not documented — e2e-smoke.ts false-positive on drift-check	medium
+2026-04-12	ses_5af3claw_004	enterprise-rust	skill_change	added getrandom js feature section to common-crates.md with wasm32 target dep pattern and diagnosis guide	high
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	skill_change	created biome.md reference with safe vs unsafe fix distinction, pre-push sequence, common error patterns	high
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	skill_change	updated pre-push gate in SKILL.md to use --unsafe, added re-stage step, added warning note	high
+2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	skill_change	added getrandom js section + canary scan exclusion pattern to hybrid-ts-rust-monorepo.md checklist	medium
+2026-04-12	ses_5af3claw_004	skill-self-improving	skill_change	added Phase 4 hooks + agents section — /self-improve now explicitly covers hook creation and agent creation	high
+2026-04-12	ses_5af3claw_004	none	skill_change	created ci-debugger agent in ~/.claude/agents/ — diagnoses local-vs-CI differences across 5 root cause categories	high
