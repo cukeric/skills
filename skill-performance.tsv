@@ -67,3 +67,11 @@ date	session_id	skill	event_type	detail	severity
 2026-04-12	ses_5af3claw_004	enterprise-devx-monorepo	skill_change	added getrandom js section + canary scan exclusion pattern to hybrid-ts-rust-monorepo.md checklist	medium
 2026-04-12	ses_5af3claw_004	skill-self-improving	skill_change	added Phase 4 hooks + agents section — /self-improve now explicitly covers hook creation and agent creation	high
 2026-04-12	ses_5af3claw_004	none	skill_change	created ci-debugger agent in ~/.claude/agents/ — diagnoses local-vs-CI differences across 5 root cause categories	high
+2026-04-12	ses_5af3claw_005	enterprise-rust	gap	biscuit-auth "wasm" feature flag not documented — caused E0425/E0599 on wasm32 compile	high
+2026-04-12	ses_5af3claw_005	enterprise-rust	correction	common-crates.md updated: biscuit-auth wasm feature + target-specific dep pattern	high
+2026-04-12	ses_5af3claw_005	enterprise-devx-monorepo	gap	SARIF upload permissions (actions: read) not in CI pipeline docs	medium
+2026-04-12	ses_5af3claw_005	enterprise-devx-monorepo	gap	pnpm overrides for transitive CVE fixes not documented	medium
+2026-04-12	ses_5af3claw_005	ci-debugger	correction	Added 3 new error patterns: SARIF permissions, biscuit-auth wasm, pnpm overrides	medium
+2026-04-12	ses_5af3claw_005	enterprise-rust	success	wasmtime 43.0.1 security pin identified and applied from CVE research	low
+2026-04-12	ses_5af3claw_005	enterprise-devx-monorepo	success	vitest 2→3 + vite 5→6 upgrade for supply chain CVE — all tests pass	low
+2026-04-12	ses_5af3claw_005	skill-self-improving	success	GEMS workflow created — replaces WHISK ceremony, /prime removed across all config	low

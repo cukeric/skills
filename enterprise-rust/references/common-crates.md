@@ -484,11 +484,25 @@ match result {
 }
 ```
 
+**WASM target — `wasm` feature required:**
+
+biscuit-auth 6.0.0 has a `wasm` feature flag that MUST be enabled for `wasm32-unknown-unknown`. Without it, `time.rs` calls `performance_now()` (undefined) and uses `try_into()` without `TryInto` in scope (edition mismatch). This causes E0425 + E0599 at compile time.
+
+```toml
+# In the crate's Cargo.toml (NOT workspace root)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+biscuit-auth = { workspace = true, features = ["wasm"] }
+getrandom = { version = "0.2", features = ["js"] }
+```
+
+Both are needed — `wasm` for biscuit-auth's internal time handling, `js` for getrandom's entropy source.
+
 **Common mistakes:**
 1. Calling `.build()` then reusing the builder variable — it was moved.
 2. Calling `.authorize()` then inspecting world state — the authorizer is consumed.
 3. Not calling `.deny if true` — without a deny-all rule, the authorizer may default to allowing. Always end with `deny if true` and explicit `allow` rules.
 4. Embedding private keys in the token — the `KeyPair` is only used to sign; it never goes in the token.
+5. **Forgetting `features = ["wasm"]` for wasm32 target** — compiles fine on native, fails on wasm32 with cryptic `performance_now` error.
 
 ---
 
@@ -499,8 +513,8 @@ match result {
 Use when Rust code is the HOST that runs WASM modules (the cage pattern).
 
 ```toml
-wasmtime = "43"
-wasmtime-wasi = "43"
+wasmtime = "43.0.1"
+wasmtime-wasi = "43.0.1"
 ```
 
 ```rust
