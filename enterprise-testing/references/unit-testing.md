@@ -376,6 +376,49 @@ coverage: {
 
 ---
 
+## Flaky Test Anti-Patterns
+
+### Wall-Clock Race: Timestamp Inequality Assertions
+
+**Problem:** Tests that assert two timestamps are different (`not.toBe()`, `not.toEqual()`) fail intermittently on fast CI runners where both operations complete within the same millisecond.
+
+```typescript
+// ❌ FLAKY — fails when both timestamps land in the same millisecond
+const original = createConsentMask(userId)
+const revoked = revokeConsent(original, "analytics")
+expect(revoked.updatedAt).not.toBe(original.updatedAt) // CI runner: same ms → FAIL
+```
+
+**Fix:** Assert temporal ordering with `getTime()` comparison instead of strict inequality:
+
+```typescript
+// ✅ STABLE — passes even when timestamps are identical (monotone guarantee)
+const original = createConsentMask(userId)
+const revoked = revokeConsent(original, "analytics")
+expect(new Date(revoked.updatedAt).getTime()).not.toBeNaN()
+expect(new Date(revoked.updatedAt).getTime()).toBeGreaterThanOrEqual(
+  new Date(original.updatedAt).getTime()
+)
+```
+
+**Why this is correct:** The semantic guarantee is "updatedAt is a valid date at or after the original" — not "these two strings are different." The `>=` assertion captures the actual invariant.
+
+**General rule:** Never use `toBe` / `not.toBe` to assert temporal uniqueness. Use Vitest's fake timers (`vi.useFakeTimers()`) if you need discrete time progression in a test:
+
+```typescript
+// ✅ ALTERNATIVE — deterministic with fake timers
+vi.useFakeTimers()
+const original = createConsentMask(userId)
+vi.advanceTimersByTime(1)    // advance clock 1ms
+const revoked = revokeConsent(original, "analytics")
+expect(revoked.updatedAt).not.toBe(original.updatedAt)
+vi.useRealTimers()
+```
+
+Use fake timers when you need to test *that time actually advances*, not just that a timestamp is valid.
+
+---
+
 ## Checklist
 
 - [ ] Tests follow AAA pattern (Arrange, Act, Assert)
@@ -387,3 +430,4 @@ coverage: {
 - [ ] Test factories for reusable test data
 - [ ] Coverage targets set and enforced
 - [ ] Snapshots used sparingly (format verification, not logic)
+- [ ] No wall-clock race assertions (use `getTime() >=` not `not.toBe()` for timestamps)

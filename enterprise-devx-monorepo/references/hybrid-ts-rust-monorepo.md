@@ -277,6 +277,28 @@ TypeScript and Rust dependencies are fully independent systems. Never cross-refe
 - Shared devDependencies (TypeScript, Vitest, Biome) in root `package.json`
 - Workspace protocol for cross-package TS deps: `"@scope/core": "workspace:*"`
 
+**`@types/node` — Required for Node built-ins in strict ESM TypeScript packages:**
+
+New packages that use `node:crypto`, `node:fs`, `process.env`, or other Node.js built-ins in strict TypeScript mode (`"moduleResolution": "bundler"` or `"node16"`) will fail `tsc --noEmit` with:
+
+```
+error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+error TS2304: Cannot find name 'process'.
+```
+
+Fix: add `@types/node` to the package's own `devDependencies` (not just the root):
+
+```json
+// packages/compliance/package.json
+{
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}
+```
+
+Then run `pnpm install` to update the lockfile before attempting `pnpm turbo typecheck`.
+
 ### Rust crates
 
 - Crate-specific dependencies in each `packages/<crate>/Cargo.toml`
@@ -415,6 +437,31 @@ The `constitutional-supervisor` crate uses `tonic` + `prost` for gRPC, which req
 ```
 
 Before any `cargo build` or `cargo test` step that touches gRPC crates.
+
+### AI agent config files must not be committed (`CLAUDE.md`, `.claude/`)
+
+`CLAUDE.md` and `.claude/` are AI agent configuration — session memory, hooks, project context. They are **not part of the public codebase** and must never be committed.
+
+Add to every project's `.gitignore` at init time:
+
+```gitignore
+# AI agent configuration — not part of the public codebase
+CLAUDE.md
+.claude/
+```
+
+If `CLAUDE.md` was already committed, untrack it without deleting it:
+
+```bash
+git rm --cached CLAUDE.md
+git rm --cached -r .claude/   # if .claude/ was also committed
+git add .gitignore
+git commit -m "chore: exclude AI agent config from repo"
+```
+
+**Why:** CLAUDE.md contains project-specific AI instructions and may reference internal systems, credentials patterns, or architectural details that should not be public. The `.claude/` directory contains session state and hook scripts specific to the developer's local environment.
+
+**CLAUDE.md filename is preserved** — Claude Code requires this exact filename to discover project context. Only its git tracking is removed, not the file itself.
 
 ### tsconfig.json must not exist in Rust crate directories
 

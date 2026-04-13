@@ -97,6 +97,117 @@ export async function GET(req: Request) {
 
 ---
 
+## TypeScript Compiler-Enforced Compliance (Advanced)
+
+Standard GDPR implementations use runtime checks that can be bypassed or forgotten. The stronger pattern uses TypeScript's type system to make missing compliance context a **compile error**, not a runtime failure.
+
+### The `createDataHandler()` Pattern
+
+```typescript
+// types.ts — compliance is part of the function signature
+interface ComplianceContext {
+  userId: string
+  lawfulBasis: "consent" | "contract" | "legal_obligation" | "legitimate_interests"
+  jurisdictions: string[]
+  consentMask?: ConsentMask
+}
+
+interface ComplianceGuard<TInput, TOutput> {
+  compliance: ComplianceContext  // ← required: cannot omit at call site
+  handler: (input: TInput, ctx: ComplianceContext) => Promise<TOutput>
+}
+
+// enforcement.ts
+export function createDataHandler<TInput, TOutput>(
+  guard: ComplianceGuard<TInput, TOutput>
+) {
+  // Zod runtime validation as defence-in-depth
+  ComplianceContextSchema.parse(guard.compliance)
+  return guard.handler
+}
+```
+
+**Usage — missing `compliance` is a TypeScript compile error:**
+
+```typescript
+// ✅ Compiles — compliance context provided
+const handleSearch = createDataHandler({
+  compliance: {
+    userId: session.userId,
+    lawfulBasis: "legitimate_interests",
+    jurisdictions: ["EU"],
+  },
+  handler: async (query: string, ctx) => { /* ... */ },
+})
+
+// ❌ TypeScript error: Property 'compliance' is missing in type...
+const handleSearch = createDataHandler({
+  handler: async (query: string) => { /* ... */ },
+})
+```
+
+This pattern makes it **structurally impossible** to write data handlers that bypass compliance — the compiler refuses to build the code.
+
+### ConsentMask — Deny-by-Default Architecture
+
+```typescript
+// Zod schema: all purposes default to false — opt-in, never opt-out
+const ConsentMaskSchema = z.object({
+  userId: z.string(),
+  analytics: z.boolean().default(false),
+  marketing: z.boolean().default(false),
+  thirdPartySharing: z.boolean().default(false),
+  profiling: z.boolean().default(false),
+  updatedAt: z.string().datetime(),
+})
+
+export function createConsentMask(userId: string): ConsentMask {
+  return ConsentMaskSchema.parse({
+    userId,
+    analytics: false,      // explicit deny
+    marketing: false,
+    thirdPartySharing: false,
+    profiling: false,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+// Immutable revocation — returns new object, never mutates
+export function revokeConsent(mask: ConsentMask, purpose: ConsentPurpose): ConsentMask {
+  return { ...mask, [purpose]: false, updatedAt: new Date().toISOString() }
+}
+```
+
+**Key invariant:** Consent masks are immutable. `revokeConsent()` returns a new object — the original mask is unchanged. This makes consent state auditable and safe to pass through pipelines.
+
+### PII Scrubber Token Format
+
+When logging or storing data that may contain PII, replace raw values with deterministic tokens that allow correlation without exposing the original value:
+
+```
+<PII:TYPE:HASH8>
+```
+
+Where `HASH8` is the first 8 characters of SHA-256 of the original value. Same value always produces the same token — enables correlating log lines without storing PII.
+
+```typescript
+// pii-scrubber.ts
+function shortHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex").substring(0, 8)
+}
+
+// "test@example.com" → "<PII:EMAIL:4b3d7c2a>"
+// "555-123-4567"     → "<PII:PHONE:7f1a9e3b>"
+export function redactPii(text: string): string {
+  return text
+    .replace(EMAIL_REGEX, (match) => `<PII:EMAIL:${shortHash(match)}>`)
+    .replace(PHONE_REGEX, (match) => `<PII:PHONE:${shortHash(match)}>`)
+    // ... other PII types
+}
+```
+
+---
+
 ## Account Deletion (GDPR Article 17 — Right to Erasure)
 
 Account deletion must cascade across all systems, not just the database.
