@@ -128,6 +128,53 @@ match result {
 
 **Common mistake:** Calling `.build()` or `.authorize()` on a builder and then reusing it. The v6 API consumes the builder — capture the result or clone before the call if you need multiple tokens.
 
+#### biscuit-auth v6 WASM — Lazy Symbol Table Warmup
+
+The WASM build of biscuit-auth v6 has an internal symbol table that is **lazily bootstrapped** on the first `authorize` call that parses a valid token. Before bootstrap, `authorize` returns `Prohibit` (or the equivalent deny result) regardless of policy — even if the policy should match `Permit`.
+
+This manifests as intermittent CI failures on fresh runners (Ubuntu, macOS) where the first authorize call returns wrong results. Local dev may work because the WASM module stays warm in Node's require cache.
+
+**Warmup pattern (TypeScript host loading WASM via wasm-pack nodejs target):**
+
+```typescript
+// At module load time — before any real calls
+let _warmupOk = false;
+try {
+  const _kp = wasmPkg.generate_keypair();
+  const parsed = JSON.parse(typeof _kp === "string" ? _kp : JSON.stringify(_kp));
+  const privKey = new Uint8Array(parsed.private_key);
+  const pubKey = new Uint8Array(parsed.public_key);
+  const warmupToken = wasmPkg.issue_root_token_with_key(privKey, JSON.stringify(['warmup("true")']));
+
+  for (let i = 0; i < 3; i++) {
+    const state = wasmPkg.authorize_token(warmupToken, pubKey, 'allow if warmup("true")');
+    if (state === PERMIT_CODE) { _warmupOk = true; break; }
+  }
+  privKey.fill(0); // zero private key bytes
+} catch (e) {
+  process.stderr.write(`[identity] WASM warmup failed (non-fatal): ${e}\n`);
+}
+```
+
+**Key points:**
+- Warmup must issue a REAL token and authorize against a policy that SHOULD return Permit — `allow if false` does NOT exercise the bootstrap path.
+- Retry 2-3 times — on some platforms the table needs multiple attempts.
+- Non-fatal if warmup fails — module still loads, but first few authorize calls may be incorrect until table boots naturally.
+- Zero private key material after warmup — no key leakage in module scope.
+
+**`std::time::SystemTime::now()` panics in wasm32 nodejs target.** Use `js_sys::Date::now()` for timestamps in WASM builds:
+
+```rust
+#[cfg(target_arch = "wasm32")]
+fn now_ms() -> f64 { js_sys::Date::now() }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn now_ms() -> f64 {
+    use std::time::SystemTime;
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis() as f64
+}
+```
+
 ### `unsafe` Policy
 
 - **No `unsafe` blocks without documented justification.** Every `unsafe` block must have a comment explaining: (1) why it is necessary, (2) why it is sound (what invariants the caller must uphold), (3) what was considered as a safe alternative.

@@ -414,6 +414,45 @@ The `identity` crate compiles to WASM via `wasm-bindgen`. This requires:
 
 Keep the wasm-pack step separate and after `cargo test --workspace`.
 
+### WASM pkg/ is gitignored — test job needs its own wasm-pack build
+
+The generated `pkg/` directory must be in `.gitignore` (it's a build artifact, not source). This means the CI **test job** cannot rely on `pkg/` existing from a previous job unless you download an artifact.
+
+**The problem:** If TypeScript tests import from `../pkg/identity.js` and the test job runs before the WASM build job (or in parallel), tests fail with `Cannot find module '../pkg/identity.js'`.
+
+**The fix:** Add wasm-pack build steps inline in the test job, before `pnpm turbo test`:
+
+```yaml
+# In the test job, BEFORE pnpm install and test:
+- name: Install Rust toolchain (for WASM build)
+  uses: dtolnay/rust-toolchain@stable
+  with:
+    targets: wasm32-unknown-unknown
+
+- name: Cache cargo registry
+  uses: actions/cache@v4
+  with:
+    path: |
+      ~/.cargo/registry
+      ~/.cargo/git
+      target
+    key: cargo-wasm-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+
+- name: Install wasm-pack
+  run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+- name: Build identity WASM package (required for identity tests)
+  run: wasm-pack build packages/identity --target nodejs --out-dir pkg
+
+- name: Install dependencies
+  run: pnpm install --frozen-lockfile
+
+- name: Run tests
+  run: pnpm turbo run test
+```
+
+The dedicated `wasm-build` job still runs separately as the canonical artifact producer for upload — this inline build is just to make `pkg/` available for tests.
+
 ### cargo test timeout for large crate trees
 
 `wasmtime` brings in 160+ transitive dependencies. On a cold CI runner (no cache):
