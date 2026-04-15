@@ -111,6 +111,8 @@ Every project's `ci.yml` must include these jobs with these names:
 
 **Lockfile:** Always use `pnpm install --frozen-lockfile`. Never `pnpm install` in CI without `--frozen-lockfile`.
 
+**pnpm version in CI:** Use pnpm **10.4.1+** in all CI jobs that run `pnpm audit`. The npm v1 security advisories endpoint was retired April 2026 and returns `410 Gone` — pnpm 9.x and earlier hit that endpoint and fail hard. pnpm 10+ uses the `bulk-advisory` endpoint. Always bump `PNPM_VERSION` in `ci.yml` AND `security.yml` AND `engines.pnpm` AND `packageManager` in root `package.json` together — partial bumps leave the matrix broken. Add `--prod` to `pnpm audit` in scheduled security scans to skip dev-only noise.
+
 ---
 
 ## Package Script Standards
