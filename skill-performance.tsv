@@ -75,3 +75,18 @@ date	session_id	skill	event_type	detail	severity
 2026-04-12	ses_5af3claw_005	enterprise-rust	success	wasmtime 43.0.1 security pin identified and applied from CVE research	low
 2026-04-12	ses_5af3claw_005	enterprise-devx-monorepo	success	vitest 2→3 + vite 5→6 upgrade for supply chain CVE — all tests pass	low
 2026-04-12	ses_5af3claw_005	skill-self-improving	success	GEMS workflow created — replaces WHISK ceremony, /prime removed across all config	low
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	gap	macOS sed -i.bak silently truncated CHANGELOG.md to 0 lines — recovered via git restore	high
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	gap	gh run list inside git submodule returned parent repo's runs — needed --repo flag	medium
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	gap	No documented single-source-of-truth election pattern — 5 docs drifted from each other	medium
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	gap	Project CLAUDE.md Version/Current-state lines drifted silently across releases	medium
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	correction	Created references/submodule-release-gotchas.md covering all four gaps + doc-claims-missing-code audit	high
+2026-04-19	ses_pr1m3claw_2026-04-19	enterprise-devx-monorepo	success	Pre-push gate (biome + turbo typecheck + turbo test + cargo test) passed first try on v0.9.5 release	low
+2026-04-19	ses_pr1m3claw_2026-04-19	ci-git-specialist	success	v0.9.5 release shipped — CI run 24645153762 green on first push	low
+2026-04-26	ses_pr1m3claw_2026-04-26	enterprise-devx-monorepo	gap	Next.js serverExternalPackages doesn't prevent webpack from resolving pnpm workspace packages pointing to TS source — needs explicit webpack externals function
+2026-04-26	ses_pr1m3claw_2026-04-26	enterprise-devx-monorepo	gap	Biome .next/** not in ignore list — next build artifacts cause 2000+ false-positive lint errors in CI
+2026-04-26	ses_pr1m3claw_2026-04-26	enterprise-testing	gap	Zod .strict() test fixture schema drift — wrong field names return VALIDATION_ERROR silently, not a useful error message pointing to the offending key
+2026-04-26	ses_pr1m3claw_2026-04-26	enterprise-rust	gap	opentelemetry-otlp grpc-tonic feature conflicts with existing tonic version — must use http-proto + reqwest-client features in crates that already depend on tonic
+2026-04-26	ses_pr1m3claw_2026-04-26	enterprise-rust	gap	opentelemetry global::tracer() returns BoxedTracer which does NOT implement PreSampledTracer — must use provider.tracer() (SdkTracer) when wiring tracing-opentelemetry layer
+2026-04-26	ses_pr1m3claw_2026-04-26	git-ci-lifecycle	skill_change	Added PR1M3Claw/pnpm workspace CI patterns: Next.js webpack externals fix, Biome .next/** ignore, Zod .strict() test fixture diagnosis
+2026-04-26	ses_pr1m3claw_2026-04-26	ci-debugger	skill_change	Added 3 new error pattern rows: Next.js webpack externals, Biome .next/**, Zod .strict() VALIDATION_ERROR fixture drift
+2026-04-26	ses_pr1m3claw_2026-04-26	none	success	M10 OTel shipped — 6 tests green, 124 Rust tests, 375 TS tests total; pre-push gate passed first try

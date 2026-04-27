@@ -15,6 +15,7 @@ All monorepo setups and CI pipelines must follow this skill. No exceptions.
 - `references/changesets.md` — Version management, CHANGELOG generation, release workflow
 - `references/biome.md` — Biome config, format/lint rules, CI integration
 - `references/hybrid-ts-rust-monorepo.md` — Hybrid TypeScript + Rust monorepos: dual workspace config, Rust package.json stubs, Turbo integration, split CI jobs, Cargo workspace dependencies, Changesets/Cargo version sync, and Rust-specific gotchas (Cargo.lock, wasmtime timeouts, wasm-pack, protoc)
+- `references/submodule-release-gotchas.md` — Release failure modes the hard way: macOS `sed -i.bak` can silently truncate files (use the Edit tool), `gh` inside a submodule needs `--repo`, safe bulk version-bump pattern for hybrid TS+Rust workspaces, single-source-of-truth pattern for multi-doc projects, `CLAUDE.md` drift check, and an audit command for "doc claims code that doesn't exist"
 
 Read this SKILL.md first, then the relevant reference files.
 
