@@ -588,6 +588,147 @@ export default defineConfig({
 })
 ```
 
+---
+
+## SSE (Server-Sent Events) in Next.js
+
+### Route Handler
+
+```typescript
+// src/app/api/events/route.ts
+import { randomEvent } from "@/lib/mock-data"; // your data generator
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // SSE requires Node runtime, not Edge
+
+export async function GET(req: Request) {
+  const encoder = new TextEncoder();
+  let interval: ReturnType<typeof setInterval>;
+
+  const stream = new ReadableStream({
+    start(controller) {
+      let idx = 0;
+      interval = setInterval(() => {
+        const event = randomEvent(idx++);
+        const data = `data: ${JSON.stringify(event)}\n\n`;
+        controller.enqueue(encoder.encode(data));
+      }, 2500);
+
+      req.signal.addEventListener("abort", () => {
+        clearInterval(interval);
+        controller.close();
+      });
+    },
+    cancel() {
+      clearInterval(interval);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}
+```
+
+### Client-Side EventSource
+
+```tsx
+"use client";
+import { useEffect, useRef, useState } from "react";
+
+export function useLiveFeed<T>(url: string) {
+  const [events, setEvents] = useState<T[]>([]);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const es = new EventSource(url);
+    esRef.current = es;
+
+    es.onmessage = (e) => {
+      const parsed = JSON.parse(e.data) as T;
+      setEvents((prev) => [parsed, ...prev].slice(0, 100)); // keep last 100
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [url]);
+
+  return events;
+}
+```
+
+### Demo-Mode Rule
+
+**SSE endpoints in demo deployments MUST auto-emit mock events.** Never deploy an SSE endpoint that only emits real events from a live pipeline — the feed will appear empty ("pipeline idle") to anyone reviewing the demo.
+
+Pattern:
+- Always have a `randomEvent(idx)` or similar generator in the route handler
+- Emit every 2–3 seconds unconditionally in demo mode
+- If real events exist (from a live pipeline), merge them with demo events
+- Check the feed renders in the browser before claiming the feature is done
+
+---
+
+## Image Sizing — Critical Rules
+
+**Always set explicit `width` AND `height` on `<img>` tags.** Setting only `height` (e.g. `height={28}`) does NOT constrain the rendered width — the image renders at its native aspect-ratio width, which can be hundreds of pixels wide.
+
+```tsx
+// ❌ WRONG — renders at native width, ignores height-only constraint  
+<img src="/logo.png" height={28} />
+
+// ✅ CORRECT — both dimensions constrained
+<img src="/logo.png" style={{ height: 28, width: "auto", display: "block" }} />
+
+// ✅ Also correct — Next.js Image with explicit sizing
+import Image from "next/image";
+<Image src="/logo.png" height={28} width={112} alt="Logo" />
+```
+
+For logos in headers: height 28–40px with `width: "auto"` is the standard constraint. Never set a logo to `height: 100%` or leave width unconstrained.
+
+---
+
+## PageShell — Shared Layout for Multi-Page Apps
+
+When a Next.js app has a main route (`/`) with its own inline layout AND multiple sub-pages (`/compliance`, `/audit-log`, etc.), extract a shared `PageShell` component. Sub-pages that lack the shell appear naked — no header, no nav, no context.
+
+```
+src/components/layout/
+├── PageShell.tsx        # header + left nav + main content area
+└── Sidebar.tsx          # optional separate nav component
+```
+
+**The right place is `src/app/layout.tsx` route group, not a shared component**, unless pages have genuinely different layouts:
+
+```
+src/app/
+├── (dashboard)/
+│   ├── layout.tsx       # ← PageShell wraps ALL dashboard routes
+│   ├── page.tsx         # /
+│   ├── compliance/
+│   │   └── page.tsx     # /compliance
+│   └── human-pause/
+│       └── page.tsx     # /human-pause
+└── (auth)/
+    ├── layout.tsx        # ← Auth layout (no nav)
+    └── login/
+        └── page.tsx
+```
+
+**Rule:** If you catch yourself duplicating a header/nav block across multiple page files, STOP — extract to a route group layout. Sub-pages that look unstyled are almost always missing a layout.tsx above them.
+
+---
+
 ```tsx
 // Example component test
 import { render, screen, fireEvent } from '@testing-library/react'

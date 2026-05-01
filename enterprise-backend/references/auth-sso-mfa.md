@@ -854,7 +854,54 @@ export async function requireRole(role: string) {
 - **JWT strategy required for Credentials provider** — database sessions don't work with Credentials.
 - **Extend JWT/session types** via `next-auth.d.ts` module augmentation for custom fields (role, orgId).
 - **Edge middleware** — `auth()` works in middleware but Prisma doesn't run on Edge. Keep DB queries in API routes/server components.
-- **`NEXTAUTH_SECRET`** and **`NEXTAUTH_URL`** env vars are required.
+- **v5 env vars renamed**: `AUTH_SECRET` (was `NEXTAUTH_SECRET`) and `AUTH_URL` (was `NEXTAUTH_URL`). Both names work in v5 but `AUTH_*` is the canonical form.
+- **Reverse proxy deployments require `AUTH_TRUST_HOST=true`** — without it, NextAuth rejects requests because the host header doesn't match. Add to `.env`: `AUTH_TRUST_HOST=true`. Required for nginx → container setups.
+
+### Next.js 15 — `useSearchParams()` Requires `<Suspense>`
+
+In Next.js 15, calling `useSearchParams()` in a client component that is NOT wrapped in `<Suspense>` causes a **build error**, not just a warning.
+
+The pattern for login pages that read `?error=` or `?callbackUrl=`:
+
+```tsx
+// ❌ Build fails in Next.js 15 — useSearchParams without Suspense boundary
+export default function LoginPage() {
+  const searchParams = useSearchParams(); // throws at build time
+  ...
+}
+
+// ✅ Correct — extract the hook into a child, wrap in Suspense
+"use client";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const reason = searchParams.get("reason"); // e.g. "timeout"
+  
+  return (
+    <>
+      {reason === "timeout" && (
+        <p aria-live="polite" style={{ /* amber warning banner */ }}>
+          Your session expired due to inactivity. Please sign in again.
+        </p>
+      )}
+      {/* form here */}
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+```
+
+**Rule:** Any component that calls `useSearchParams()`, `usePathname()`, or other navigation hooks that depend on request-time data MUST be wrapped in `<Suspense>`. Extract an inner component and wrap the outer page in `<Suspense fallback={null}>` or a loading skeleton.
 
 ---
 

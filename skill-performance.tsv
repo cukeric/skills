@@ -90,3 +90,13 @@ date	session_id	skill	event_type	detail	severity
 2026-04-26	ses_pr1m3claw_2026-04-26	git-ci-lifecycle	skill_change	Added PR1M3Claw/pnpm workspace CI patterns: Next.js webpack externals fix, Biome .next/** ignore, Zod .strict() test fixture diagnosis
 2026-04-26	ses_pr1m3claw_2026-04-26	ci-debugger	skill_change	Added 3 new error pattern rows: Next.js webpack externals, Biome .next/**, Zod .strict() VALIDATION_ERROR fixture drift
 2026-04-26	ses_pr1m3claw_2026-04-26	none	success	M10 OTel shipped — 6 tests green, 124 Rust tests, 375 TS tests total; pre-push gate passed first try
+2026-05-01	ses_aigist_2026-05-01	enterprise-frontend	gap	SSE endpoints not documented as needing demo-mode mock event generator — live feed showed "pipeline idle" on deployed demo	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-frontend	gap	<img> sizing: setting only height without width renders at native image width — logo filled half the page	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-frontend	gap	No PageShell / route-group layout guidance — sub-pages (/compliance, /human-pause) deployed with no layout shell, appeared naked	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-backend	gap	NextAuth v5: useSearchParams() in login page requires <Suspense> wrapping in Next.js 15 — build error without it; not documented in auth-sso-mfa.md	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-backend	gap	NextAuth v5 behind nginx reverse proxy requires AUTH_TRUST_HOST=true — not documented	medium
+2026-05-01	ses_aigist_2026-05-01	enterprise-deployment	gap	rsync --delete wiped VPS-only .env.demo and nginx.conf — no exclude pattern documented in vps-setup.md	critical
+2026-05-01	ses_aigist_2026-05-01	enterprise-frontend	skill_change	Added SSE demo-mode pattern section, img sizing rules, and PageShell/route-group layout guidance to react-nextjs.md	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-backend	skill_change	Added useSearchParams Suspense pattern + AUTH_TRUST_HOST note to auth-sso-mfa.md NextAuth v5 section	high
+2026-05-01	ses_aigist_2026-05-01	enterprise-deployment	skill_change	Added rsync --delete hazard section + 5-step local→VPS→git deploy.sh pattern to vps-setup.md	critical
+2026-05-01	ses_aigist_2026-05-01	none	correction	Agent output verification expanded: must check ALL pages (not just /), verify SSE emits demo events, verify img has explicit width+height before claiming done	critical

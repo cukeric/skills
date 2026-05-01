@@ -219,7 +219,76 @@ docker compose version
 
 ---
 
-## Deploy Script
+## rsync Safety — `--delete` Hazard
+
+**`rsync --delete` will wipe VPS-only files** (`.env`, `nginx.conf`, SSL keys, secrets) if they don't exist in the source. This has destroyed production configs.
+
+**Required excludes whenever using `--delete`:**
+
+```bash
+rsync -avz --delete \
+  --exclude '.env' \
+  --exclude '.env.*' \
+  --exclude '.env.production' \
+  --exclude '.env.demo' \
+  --exclude 'nginx.conf' \
+  --exclude '*.pem' \
+  --exclude '*.key' \
+  --exclude 'ssl/' \
+  --exclude 'certs/' \
+  src/ user@host:/opt/app/
+```
+
+**Rule:** Before any `rsync --delete` deployment, explicitly enumerate what VPS-only files MUST NOT be deleted. Add them to `--exclude`. Never rely on "they're in the same directory" — rsync will delete them if they're not in the local source.
+
+---
+
+## Local → VPS → Git Workflow (pnpm monorepo)
+
+This is the correct deployment order when the VPS has no GitHub SSH key:
+
+```bash
+#!/bin/bash
+# deploy.sh — 5-step: verify → build → sync → rebuild → health check
+set -euo pipefail
+
+VPS_HOST="root@your.vps.ip"
+VPS_PATH="/opt/myapp"
+SSH_KEY="$HOME/.ssh/deploy_key"
+
+echo "▶ [1/5] Lint + typecheck"
+pnpm exec biome check --write .
+pnpm turbo typecheck
+
+echo "▶ [2/5] Build"
+pnpm turbo build
+
+echo "▶ [3/5] Sync to VPS (safe excludes)"
+rsync -avz --delete \
+  --exclude '.env' --exclude '.env.*' \
+  --exclude 'nginx.conf' --exclude '*.pem' --exclude '*.key' \
+  --exclude 'node_modules/' --exclude '.git/' \
+  -e "ssh -i $SSH_KEY" \
+  . "$VPS_HOST:$VPS_PATH/"
+
+echo "▶ [4/5] Rebuild containers on VPS"
+ssh -i "$SSH_KEY" "$VPS_HOST" "cd $VPS_PATH && docker compose -f docker-compose.demo.yml up -d --build"
+
+echo "▶ [5/5] Health check"
+sleep 20
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://yourdomain.io)
+[ "$HTTP" = "200" ] && echo "✓ Live (HTTP 200)" || { echo "✗ Health check failed ($HTTP)"; exit 1; }
+```
+
+After confirming the VPS deployment is healthy, then push to git:
+
+```bash
+git add -A && git commit -m "feat: [description]" && git push origin main
+```
+
+---
+
+## Deploy Script (Legacy — pull from registry)
 
 ```bash
 #!/bin/bash
