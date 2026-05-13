@@ -216,3 +216,59 @@ i18n
 4. Translators provide translations
 5. Import translated files back to `messages/`
 6. CI checks for missing translations
+
+---
+
+## Locale Variants — When to Use Which
+
+Default `fr` is France French. If the audience is Canadian, Quebec, federal Canadian government, IRAP-track, or any French-speaking jurisdiction outside France, use `fr-CA` and treat it as a **distinct locale**, not a synonym for `fr`. The vocabulary, idioms, and (especially) UI verbs differ.
+
+### Quebec French (fr-CA) UI conventions
+
+Translation traps that hit the AIGIST project (2026-05):
+
+| English UI verb | France `fr` | Quebec `fr-CA` |
+|---|---|---|
+| Expand sidebar | Étendre la barre latérale | **Déployer** la barre latérale (preferred) — "Étendre" reads as "extend its size" |
+| Collapse sidebar | Réduire la barre latérale | Réduire / Replier la barre latérale |
+| Sign in | Se connecter | Se connecter (same) |
+| Sign out | Se déconnecter | Se déconnecter (same) |
+| Email | E-mail | **Courriel** (mandatory in GoC / federal Quebec content) |
+| Submit | Soumettre | Soumettre / Envoyer |
+| Cancel | Annuler | Annuler (same) |
+| Click here | Cliquez ici | Cliquez ici (same) — but avoid in body copy, both locales prefer descriptive link text |
+| File (noun) | Fichier | Fichier (same) |
+| Download | Télécharger | Télécharger (same) |
+| Toggle | Basculer | Basculer / Activer |
+| Settings | Paramètres | **Paramètres** (preferred) or "Réglages" |
+
+### Government of Canada (GoC) terminology
+
+If the project targets federal Canadian deployment:
+
+- "Government of Canada" → **"Gouvernement du Canada"** (always capitalised)
+- "Service Canada" stays untranslated (it's a proper noun).
+- AIDA → **"LIAD"** (Loi sur l'intelligence artificielle et les données) when expanded; AIDA as the acronym is acceptable.
+- PIPEDA → **"LPRPDE"** (Loi sur la protection des renseignements personnels et les documents électroniques); citation form "PIPEDA / LPRPDE" is acceptable.
+- "Federal" → "fédéral / fédérale" (gendered agreement matters).
+- Always use the [Termium Plus](https://www.btb.termiumplus.gc.ca/) terminology database for any federal-government-specific term — it is the authoritative GoC glossary.
+
+### Native-speaker review
+
+Quebec French has enough surface-level overlap with France French that machine translation and AI translation pass at first glance — but UI verbs, idioms, and the choice between "tu" and "vous" addressing modes diverge. Budget for at least one native-speaker review pass per release for any fr-CA surface, especially if the audience includes government / regulated industry.
+
+### Code: locale negotiation
+
+```ts
+// next-intl with fr-CA as a distinct locale
+export const locales = ["en", "fr-CA"] as const;
+export const defaultLocale = "en" as const;
+
+// In your getRequestConfig — fall back fr → fr-CA, never the other way
+function negotiateLocale(requested: string): typeof locales[number] {
+  if (requested === "fr-CA" || requested === "fr") return "fr-CA";
+  return "en";
+}
+```
+
+Do NOT label your French file as just `fr.json` if it contains Quebec usage — name it `fr-CA.json`. Future translators will assume `fr.json` is France French and "fix" your Quebec idioms.

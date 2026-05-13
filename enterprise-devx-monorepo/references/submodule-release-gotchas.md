@@ -151,3 +151,75 @@ gh run list --repo <owner>/<submodule-repo>  # always pass --repo
 grep -rn "\"version\":" packages/*/package.json       # spot the misses
 grep -rn "^version = " packages/*/Cargo.toml           # spot the misses
 ```
+
+---
+
+## 7. Changesets does not bump the root `package.json` when root is private and outside the workspace
+
+**Symptom:**
+
+```bash
+$ pnpm changeset version
+🦋  error Error: Found changeset v0-21-0 for package aigist which is not in the workspace
+```
+
+**Cause:** A typical pnpm workspace lists `packages/*` (and maybe `examples/*`, `website`) in `pnpm-workspace.yaml` but does NOT include the workspace root. The root `package.json` carries `"private": true` and a top-level project name used only as the project identifier, not a published artefact. Changesets rejects any name in the frontmatter that is not in the workspace.
+
+**Why this hits:** Older changesets in the same repo sometimes listed the root name (e.g. `"aigist": minor`) and worked because the workspace config differed at the time. After a workspace reorganisation the same shape breaks. The root version is now decoupled from the changeset-driven workspace bump.
+
+**Fix:**
+
+1. **Remove the root name from the changeset frontmatter.** Only list real workspace packages.
+2. **Bump the root `package.json` version manually** to match the headline release version.
+3. **Re-run the version-badge script** — the `version-packages` npm script typically chains `changeset version && node scripts/update-version-badge.js`; the badge reads the root `package.json` so it now picks up the manual bump.
+
+```bash
+# 1. Edit .changeset/<name>.md: remove "<root-name>": minor line
+# 2. Manually edit package.json: "version": "0.21.0"
+# 3. Run badge update
+node scripts/update-version-badge.js
+```
+
+**Alternative — add root to the workspace** by listing `.` in `pnpm-workspace.yaml`:
+
+```yaml
+packages:
+  - "."
+  - "packages/*"
+```
+
+Requires the root to have a valid `name` (most already do) and no name collision with a package. Test with a throwaway changeset before relying on it.
+
+---
+
+## 8. Workspace package versions drift across releases
+
+**Symptom:** After running `pnpm changeset version`, different packages report different versions even though all received `minor` in the changeset (e.g. cli at 0.22.0, core at 0.21.0).
+
+**Cause:** Packages had pre-existing drift from earlier non-uniform changesets. A minor bump applied to a package already at 0.21.0 produces 0.22.0; the same bump on a package still at 0.20.5 produces 0.21.0. Changesets doesn't reconcile — it bumps from each package's current version.
+
+**Fix options:**
+
+- **Accept the drift** for non-published packages (private workspace utilities). Consumers don't see the version number.
+- **Synchronise via Changesets `fixed`** in `.changeset/config.json` for packages that must release together:
+  ```json
+  { "fixed": [["@app/core", "@app/cli", "@app/dashboard"]] }
+  ```
+  Packages in a `fixed` group always bump to the same version. Removes the option to release independent patches, so use sparingly.
+- **One-time manual reset** before the next release: edit all `package.json` versions to match, commit, continue with `pnpm changeset` as normal.
+
+First option is correct for internal monorepos. Second is correct for public package suites where consumer trust depends on version coherence (e.g. a CLI + runtime + UI library shipped together).
+
+---
+
+## 9. Post-`changeset version` biome-format violations on touched `package.json` files
+
+After `pnpm changeset version` rewrites `package.json` files, Biome may flag whitespace/format differences on the bumped files:
+
+```
+✘ Formatter would have printed the following content
+  ./packages/cli/package.json
+  ./packages/identity/package.json
+```
+
+This is harmless but fails CI / pre-push gate. Run `pnpm exec biome check --write .` immediately after `version-packages` and commit the format fixes as either a follow-up `style(biome):` commit or fold them into the release commit. Add this to the standard release runbook.
