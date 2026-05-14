@@ -27,6 +27,9 @@ This skill has detailed reference guides. Read the relevant file(s) based on the
 ### Responsive Design & Accessibility
 - `references/responsive-accessibility.md` — Responsive breakpoints, mobile-first patterns, WCAG 2.1 AA compliance, keyboard navigation, screen readers
 
+### Client/Server Boundary
+- `references/client-server-boundary.md` — `Buffer`/`process` not in browsers, UTF-8-safe base64 decode, position-stable React table keys vs `noArrayIndexKey`, `Access-Control-Expose-Headers` for custom response headers, BOM-preserving response reads, role-gate redirect destinations
+
 Read this SKILL.md first for architecture decisions and standards, then consult the relevant reference files for implementation specifics.
 
 ---

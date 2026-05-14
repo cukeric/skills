@@ -57,6 +57,63 @@ export const env = envSchema.parse(process.env)
 - **Never commit .env files** — add to .gitignore
 - **Different secrets per environment** — dev, staging, production must have separate credentials
 - **Validate at startup** — fail fast if required secrets are missing
+- **Production MUST refuse silent fallback** — see "No-Fallback Pattern" below
+
+### No-Fallback Pattern (production env-var safety)
+
+A common compliance hole: a route or background job has a "dev convenience"
+fallback (generate-and-log an ephemeral key, use a default value, sign with a
+throwaway secret) that **silently activates in production** if the env-var is
+unset. Exports / signatures / tokens issued during that window cannot be
+verified after the next process restart — the forensic chain of custody is
+broken.
+
+**Rule:** In production, refuse to start (or refuse the request) instead of
+silently falling back.
+
+```typescript
+function getOrCreateSigner(): Signer {
+  if (_signer !== null) return _signer
+
+  const keyHex = process.env.REPORT_SIGNING_KEY_HEX
+  if (typeof keyHex === 'string' && keyHex.length === 64) {
+    _signer = new InProcessSigner(decodeHex(keyHex))
+    return _signer
+  }
+
+  // Production refuses silent ephemeral fallback — the compliance hole this
+  // closes is: exports signed today cannot be verified after process restart,
+  // breaking forensic chain of custody for any audit shipped in this window.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'REPORT_SIGNING_KEY_HEX must be set in production. ' +
+      'Refusing to sign with an ephemeral keypair.',
+    )
+  }
+
+  // Dev fallback ONLY — log the public key once so dev exports stay verifiable
+  const keypair = generateKeypair()
+  _signer = new InProcessSigner(keypair)
+  console.warn(`[Reports] Using ephemeral dev keypair: ${pubKeyHex(keypair)}`)
+  return _signer
+}
+```
+
+In the route handler, surface as a clean error code so monitoring catches it:
+
+```typescript
+catch (err) {
+  const code =
+    err instanceof Error && err.message.includes('REPORT_SIGNING_KEY_HEX')
+      ? 'SIGNING_KEY_MISSING'  // ← page on this code
+      : 'SIGN_ERROR'
+  return Response.json({ error: { code, message } }, { status: 500 })
+}
+```
+
+**When this applies:** signing keys, encryption keys, webhook secrets,
+admin-bypass tokens, anywhere a missing env-var would otherwise produce
+"works in dev, silently insecure in prod."
 
 ---
 

@@ -41,6 +41,21 @@ gh pr view --repo cukeric/PR1M3Claw
 
 **Detection pattern:** if the first `gh run list` result has an unfamiliar workflow name, stop and re-run with `--repo`. Don't debug CI based on the wrong repo's output.
 
+**Also applies to non-submodule repos with multiple remotes.** A repo can have
+`origin` (e.g. `cukeric/aigist`) AND `upstream` (e.g. a fork's source like
+`openclaw/openclaw`). `gh` may resolve to `upstream` rather than `origin`,
+returning a confusing 404 ("HTTP 404: not found … openclaw/openclaw"). The fix
+is the same: `--repo OWNER/REPO` explicitly. Verify with `git remote -v` before
+debugging.
+
+```bash
+# Wrong (resolves to upstream remote — wrong repo)
+gh run view 25830161611
+
+# Right
+gh run view 25830161611 --repo cukeric/aigist
+```
+
 ---
 
 ## 3. Coordinated version bumps across hybrid TS + Rust workspaces

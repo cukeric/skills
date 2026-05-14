@@ -206,6 +206,79 @@ Semgrep exports supply chain findings as CSV from semgrep.dev. Triage workflow:
 
 ---
 
+## Patching Transitive Vulnerabilities (pnpm + npm)
+
+When `pnpm audit --audit-level=high` (or `npm audit`) flags a CVE in a transitive
+dependency, there are three escalating strategies in order of preference:
+
+### Strategy 1 — Remove the parent dep if unused
+
+The cleanest fix: if a vulnerable transitive comes via a package YOU declared but
+don't actually import, **delete the declaration**. Confirm with `grep -rn "@vendor/pkg\b" packages/ examples/ | grep -v node_modules | grep -v dist`.
+If only stale build artifacts (`.next/standalone/`, `dist/`) and design docs reference
+the package, it's safe to remove from `package.json`.
+
+**Why preferred:** No version bump, no API migration, no peer-dep cascade. Eliminates
+the CVE AND shrinks the install. Example from 2026-05-14: `@opentelemetry/sdk-node`
+was declared in agent-runtime/package.json but only `@opentelemetry/sdk-trace-node`
+was imported — removing sdk-node entirely closed `GHSA-q7rr-3cgh-j5r3` (Prometheus
+exporter crash) without the 0.x → 2.x SDK migration the patched version required.
+
+### Strategy 2 — Tighten `pnpm.overrides` (range too permissive)
+
+Existing override ranges like `">=7.5.5"` can silently resolve to a NEWER vulnerable
+version (e.g. `8.0.1` falls in the range but was added to a later advisory). After
+adding ANY transitive override, pin to a specific MAJOR with caret on the latest
+patched: `"^8.3.0"` instead of `">=7.5.5"`.
+
+```jsonc
+// Bad — too permissive, lets pnpm pick the lowest-satisfying version
+{
+  "pnpm": { "overrides": { "protobufjs": ">=7.5.5" } }
+}
+
+// Good — caret on latest patched version of the major you want
+{
+  "pnpm": { "overrides": { "protobufjs": "^8.3.0" } }
+}
+```
+
+**Audit your existing overrides every quarter** — an override that closed one CVE
+may now be open to a newer one in the same major.
+
+### Strategy 3 — Bump a direct dep's range floor
+
+When a direct dep (e.g. `next` in `dashboard/package.json`) is the vulnerable one
+AND `--frozen-lockfile` is used in CI, the existing range may still cover the
+patched version BUT the lockfile won't update on a plain `pnpm install`. Bump
+the **range floor** to force the resolution:
+
+```jsonc
+// Before — ^15.3.1 covers 15.5.18 but lockfile keeps the old 15.5.15
+{ "next": "^15.3.1" }
+
+// After — floor at the patched version forces pnpm install to update lockfile
+{ "next": "^15.5.18" }
+```
+
+Then run `pnpm install` (NOT `--frozen-lockfile`) once locally to regenerate the
+lockfile entry. Commit the lockfile alongside the package.json change.
+
+### Order of operations
+
+```
+pnpm audit --audit-level=high
+  ↓
+For each vulnerable transitive:
+  1. Can we delete the parent dep? (grep for usage)         ← prefer
+  2. Else, tighten pnpm.overrides to ^latest_patched
+  3. Else, bump the direct dep's range floor
+
+Re-run pnpm install, re-run pnpm audit, verify 0 highs.
+```
+
+---
+
 ## cargo audit (Rust)
 
 ```bash

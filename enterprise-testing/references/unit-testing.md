@@ -417,6 +417,89 @@ vi.useRealTimers()
 
 Use fake timers when you need to test *that time actually advances*, not just that a timestamp is valid.
 
+### Test-Claim-vs-Test-Evidence Mismatch
+
+**Problem:** A test's `describe` / `it` label promises one thing (e.g.
+"non-blocking write-through doesn't block consumers"), but the test body only
+exercises an unrelated property (e.g. "the ring buffer is populated
+synchronously"). The test passes, the label stays, the actual claim is never
+proven. The first regression that breaks the claimed behaviour ships green.
+
+```typescript
+// ❌ MISLEADING — label says "consumers not blocked" but no consumer is attached
+it("slow ChainStore → ring buffer has all 10 events within 50ms", () => {
+  _resetAuditChainForTests(new AuditChain(new SlowStore())) // 250ms/append
+
+  const t0 = Date.now()
+  for (let i = 0; i < 10; i++) publishPipelineEvent(makeEvent())
+  const elapsed = Date.now() - t0
+
+  // This proves the ring-buffer push is synchronous — NOT that consumers
+  // (bus listeners) aren't blocked. emit() with no listeners returns instantly
+  // regardless of whether append blocks. The test gives false confidence.
+  expect(getPipelineRingBuffer().length).toBe(10)
+  expect(elapsed).toBeLessThan(50)
+})
+```
+
+**Fix:** Materialise the claim by attaching the actual consumer the label
+promises, and assert against that consumer's observed behaviour:
+
+```typescript
+// ✅ EVIDENCE-COMPLETE — listener attached, listener timing asserted
+it("slow ChainStore → ring buffer + bus listeners receive all 10 within 50ms", () => {
+  _resetAuditChainForTests(new AuditChain(new SlowStore()))
+
+  const listenerReceipts: number[] = []
+  pipelineEventBus.on("event", () => listenerReceipts.push(Date.now()))
+
+  const t0 = Date.now()
+  for (let i = 0; i < 10; i++) publishPipelineEvent(makeEvent())
+
+  expect(getPipelineRingBuffer().length).toBe(10)
+  expect(listenerReceipts).toHaveLength(10)              // listener fired all 10
+  const last = listenerReceipts[listenerReceipts.length - 1] ?? t0
+  expect(last - t0).toBeLessThan(50)                     // ← the real claim
+})
+```
+
+**General rule:** before declaring a test done, re-read the label and ask:
+"if I deleted the production code path this test names, would the test
+fail?" If not, the test is decorative. Common offenders:
+
+| Label says | Test must materialise |
+|---|---|
+| "non-blocking" | A consumer + its observed receive latency |
+| "fire-and-forget" | A successful continuation after a thrown handler |
+| "concurrent-safe" | Two concurrent writers + a final-state assertion |
+| "role-gated" | A request with the wrong role + a 403 assertion |
+| "cancellable" | An abort signal + a cleanup assertion |
+
+This anti-pattern is invisible to coverage tools (every line ran) and to code
+review (the test looks well-structured). Catch it in self-review by mentally
+deleting the production code the test claims to protect.
+
+### `removeAllListeners()` scope hazard
+
+`emitter.removeAllListeners()` with no argument wipes **every** listener on
+every channel — including listeners attached by other modules at import time.
+Common in `beforeEach`/`afterEach` for EventEmitter-based test isolation.
+
+```typescript
+// ❌ DESTRUCTIVE — wipes governance-feed SSE listener if co-imported later
+beforeEach(() => {
+  pipelineEventBus.removeAllListeners()
+})
+
+// ✅ SCOPED — only wipes "event" channel listeners attached by this test
+beforeEach(() => {
+  pipelineEventBus.removeAllListeners("event")
+})
+```
+
+Cross-test contamination via this hazard typically manifests as a flaky
+suite where order-dependent listener counts cause one test in 50 to fail.
+
 ---
 
 ## Checklist
