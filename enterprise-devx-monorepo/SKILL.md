@@ -16,8 +16,15 @@ All monorepo setups and CI pipelines must follow this skill. No exceptions.
 - `references/biome.md` — Biome config, format/lint rules, CI integration
 - `references/hybrid-ts-rust-monorepo.md` — Hybrid TypeScript + Rust monorepos: dual workspace config, Rust package.json stubs, Turbo integration, split CI jobs, Cargo workspace dependencies, Changesets/Cargo version sync, and Rust-specific gotchas (Cargo.lock, wasmtime timeouts, wasm-pack, protoc)
 - `references/submodule-release-gotchas.md` — Release failure modes the hard way: macOS `sed -i.bak` can silently truncate files (use the Edit tool), `gh` inside a submodule needs `--repo`, safe bulk version-bump pattern for hybrid TS+Rust workspaces, single-source-of-truth pattern for multi-doc projects, `CLAUDE.md` drift check, and an audit command for "doc claims code that doesn't exist"
+- `references/ci-local-parity.md` — **"Passes locally, fails CI"** — the most expensive failure class. The clean-checkout simulation to run before pushing build/CI/infra changes, the non-emitting `build` script trap (gitignored `dist/` + turbo `^build` no-op), migration scripts that need a build, service-dependent tests that silently skip locally, and tests that depend on ambient machine state (`~/.config` key files, env vars)
 
 Read this SKILL.md first, then the relevant reference files.
+
+> **Note (skill-library drift):** `monorepo-scaffold.md`, `ci-pipeline.md`,
+> `pre-push-gate.md`, and `changesets.md` are listed above but not yet split out as
+> files — their content is currently inline in this SKILL.md (see the
+> "Pre-Push Gate", "CI Pipeline Standard", "Monorepo Structure", "Changesets"
+> sections). Treat the inline sections as authoritative until the files are created.
 
 ---
 

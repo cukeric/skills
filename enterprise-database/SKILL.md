@@ -20,6 +20,9 @@ This skill has detailed reference guides. Read the relevant file(s) based on the
 ### ORM & Data Access Layer
 - `references/orm-guide.md` — When choosing or configuring an ORM (Prisma, Drizzle, TypeORM, Sequelize, SQLAlchemy, Mongoose)
 
+### Specialized Patterns
+- `references/append-only-audit-store.md` — Durable tamper-evident audit/event stores on PostgreSQL 16 + Prisma 7: the adapter pattern and when to drop to the raw `pg` driver (RLS `SET LOCAL`, advisory locks), append-only triggers (incl. `TRUNCATE`), RLS `ENABLE`-not-`FORCE` and the `SECURITY DEFINER` chain-head, sequence-ordered hash chains, fail-closed PII encryption, and honest WAL archiving. Read for any audit log, event sourcing, ledger, or compliance-evidence table.
+
 ### Cloud Provider Deployment
 - `references/aws-database.md` — Deploying to AWS (RDS, Aurora, ElastiCache, DynamoDB)
 - `references/azure-database.md` — Deploying to Azure (Flexible Server, Cosmos DB, Azure Cache)
