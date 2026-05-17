@@ -9,102 +9,47 @@ All monorepo setups and CI pipelines must follow this skill. No exceptions.
 
 ## Reference Files
 
-- `references/monorepo-scaffold.md` — pnpm workspaces + Turborepo setup, package structure, tsconfig inheritance
-- `references/ci-pipeline.md` — GitHub Actions job matrix, caching, secrets, job dependencies
-- `references/pre-push-gate.md` — **MANDATORY** local validation before any git push
-- `references/changesets.md` — Version management, CHANGELOG generation, release workflow
+- `references/monorepo-scaffold.md` — pnpm workspaces + Turborepo: directory structure, package script standards, tsconfig inheritance, turbo.json task graph
+- `references/ci-pipeline.md` — GitHub Actions: the 6 required jobs, caching, `--frozen-lockfile`, service containers for integration tests, canary-scan false positives, common CI failure table
+- `references/pre-push-gate.md` — **MANDATORY** local validation before any git push — the 6-step sequence, the `--unsafe` Biome rule, SSH-remote requirement
+- `references/changesets.md` — Version management, `pnpm changeset version` behavior + post-run Biome/lockfile fixups, release workflow
 - `references/biome.md` — Biome config, format/lint rules, CI integration
-- `references/hybrid-ts-rust-monorepo.md` — Hybrid TypeScript + Rust monorepos: dual workspace config, Rust package.json stubs, Turbo integration, split CI jobs, Cargo workspace dependencies, Changesets/Cargo version sync, and Rust-specific gotchas (Cargo.lock, wasmtime timeouts, wasm-pack, protoc)
-- `references/submodule-release-gotchas.md` — Release failure modes the hard way: macOS `sed -i.bak` can silently truncate files (use the Edit tool), `gh` inside a submodule needs `--repo`, safe bulk version-bump pattern for hybrid TS+Rust workspaces, single-source-of-truth pattern for multi-doc projects, `CLAUDE.md` drift check, and an audit command for "doc claims code that doesn't exist"
-- `references/ci-local-parity.md` — **"Passes locally, fails CI"** — the most expensive failure class. The clean-checkout simulation to run before pushing build/CI/infra changes, the non-emitting `build` script trap (gitignored `dist/` + turbo `^build` no-op), migration scripts that need a build, service-dependent tests that silently skip locally, and tests that depend on ambient machine state (`~/.config` key files, env vars)
+- `references/ci-local-parity.md` — **"Passes locally, fails CI"** — the clean-checkout simulation before pushing build/CI/infra changes, the non-emitting `build`-script trap, migration scripts that need a build, service tests that skip locally, tests depending on ambient machine state
+- `references/hybrid-ts-rust-monorepo.md` — Hybrid TypeScript + Rust monorepos: dual workspace config, Rust package.json stubs, Turbo integration, split CI jobs, Cargo workspace deps, Changesets/Cargo version sync, Rust gotchas (Cargo.lock, wasmtime timeouts, wasm-pack, protoc)
+- `references/submodule-release-gotchas.md` — Release failure modes the hard way: macOS `sed -i.bak` truncation, `gh` needs `--repo` in a submodule / multi-remote repo, safe bulk version-bump, single-source-of-truth for multi-doc projects, `CLAUDE.md` drift check
 
 Read this SKILL.md first, then the relevant reference files.
-
-> **Note (skill-library drift):** `monorepo-scaffold.md`, `ci-pipeline.md`,
-> `pre-push-gate.md`, and `changesets.md` are listed above but not yet split out as
-> files — their content is currently inline in this SKILL.md (see the
-> "Pre-Push Gate", "CI Pipeline Standard", "Monorepo Structure", "Changesets"
-> sections). Treat the inline sections as authoritative until the files are created.
 
 ---
 
 ## The Pre-Push Gate — MANDATORY Before Every First Push
 
-**This is the single most important rule in this skill. It is not optional. It is not skippable.**
+**The single most important rule in this skill. Not optional. Not skippable.**
 
-Before the FIRST `git push` on any new monorepo, or after ANY change to `.github/workflows/`, run this exact sequence locally. Do not push until all steps pass with zero errors.
-
-```bash
-# 1. Generate lockfile (CI uses --frozen-lockfile; missing lockfile = total failure)
-pnpm install
-
-# 2. Fix ALL lint + format issues — MUST use --unsafe to catch useLiteralKeys, noConsoleLog, etc.
-#    biome check --write (without --unsafe) silently skips unsafe rules — CI will still fail!
-pnpm exec biome check --write --unsafe .
-git add -A  # ← RE-STAGE files Biome modified (critical — Biome changes must be committed)
-
-# 3. Catch all type errors before CI
-pnpm turbo run typecheck
-
-# 4. Confirm tests pass (catches missing --passWithNoTests on stub packages)
-pnpm turbo run test
-
-# 5. Audit stub packages for script correctness
-# Any package with "typecheck": "tsc --noEmit" MUST have a tsconfig.json
-# Rust/native stubs must use "echo 'N/A — [lang] build in M[n]'" instead
-
-# 6. Dispatch code-reviewer agent to audit CI config BEFORE pushing
-# Dispatch: code-reviewer with prompt:
-#   "Review all .github/workflows/*.yml for: job dependency graph, caching,
-#    --frozen-lockfile usage, secret references, branch triggers, turbo.json
-#    pipeline completeness, and package script correctness. Report issues with
-#    severity CRITICAL/HIGH/MEDIUM/LOW."
-# Fix ALL issues reported at HIGH or above before pushing.
-```
-
-**All 6 must complete before pushing.** One clean push beats five fix commits.
-
-> **Step 2 note:** `biome check --write` (without `--unsafe`) only applies safe fixes. Rules like `useLiteralKeys`, `noConsoleLog`, and `noUnusedVariables` are "unsafe" and silently skipped. Always use `--unsafe` in the pre-push gate. After Biome runs, always `git add -A` to re-stage its changes — Biome-modified files that aren't committed will cause CI to fail with the exact errors you just "fixed" locally.
-
-### SSH Remote — Always Use for Repos with Workflow Files
-
-GitHub HTTPS OAuth tokens require the `workflow` scope to push `.github/workflows/`. Unless that scope is confirmed, always use SSH:
+Before the FIRST `git push` on a new monorepo, or after ANY change to
+`.github/workflows/`, run this sequence locally — push only when every step is clean:
 
 ```bash
-git remote set-url origin git@github.com:owner/repo.git
+pnpm install                                  # 1. lockfile (CI uses --frozen-lockfile)
+pnpm exec biome check --write --unsafe . && git add -A   # 2. lint+format (--unsafe!), re-stage
+pnpm turbo run typecheck                       # 3. type errors
+pnpm turbo run test                            # 4. tests (--passWithNoTests on stubs)
+# 5. audit stub-package scripts (tsconfig.json present; Rust stubs use echo)
+# 6. dispatch code-reviewer to audit .github/workflows/*.yml — fix all HIGH+ before push
 ```
 
-Set this when initializing the repo. Do not wait until a push is rejected.
+One clean push beats five fix commits. Full rationale, the `--unsafe` trap, and the
+SSH-remote requirement: **`references/pre-push-gate.md`**.
 
----
-
-## Monorepo Structure
-
-```
-repo/
-├── apps/                    # Deployable applications
-│   └── [app]/
-├── packages/                # Shared packages
-│   ├── core/                # Foundation types, schemas, utilities
-│   └── [domain]/            # Feature packages
-├── .github/
-│   └── workflows/
-│       ├── ci.yml           # Primary CI (lint, typecheck, test, build, security)
-│       ├── release.yml      # Changesets release automation
-│       ├── security.yml     # Nightly SAST + secret scan
-│       └── drift-check.yml  # Integrity checks (if applicable)
-├── turbo.json               # Turborepo task graph
-├── biome.json               # Biome lint + format config
-├── pnpm-workspace.yaml      # Workspace package globs
-├── package.json             # Root scripts + devDependencies
-└── tsconfig.base.json       # Shared TS config (extended by packages)
-```
+For build / CI / infra / Dockerfile / service-test changes, **also** run the
+clean-checkout simulation in **`references/ci-local-parity.md`** — the pre-push gate
+verifies code, not environment parity.
 
 ---
 
 ## CI Pipeline Standard — 6 Required Jobs
 
-Every project's `ci.yml` must include these jobs with these names:
+Every `ci.yml` must include these jobs with these names:
 
 | Job | Tool | Must Pass Before |
 |-----|------|-----------------|
@@ -115,33 +60,20 @@ Every project's `ci.yml` must include these jobs with these names:
 | `audit` | pnpm audit --audit-level=high | — |
 | `ci-gate` | needs: [lint, typecheck, test, build, audit] | deployment |
 
-**Caching:** Always cache `~/.pnpm-store` and `.turbo` between jobs.
-
-**Lockfile:** Always use `pnpm install --frozen-lockfile`. Never `pnpm install` in CI without `--frozen-lockfile`.
-
-**pnpm version in CI:** Use pnpm **10.4.1+** in all CI jobs that run `pnpm audit`. The npm v1 security advisories endpoint was retired April 2026 and returns `410 Gone` — pnpm 9.x and earlier hit that endpoint and fail hard. pnpm 10+ uses the `bulk-advisory` endpoint. Always bump `PNPM_VERSION` in `ci.yml` AND `security.yml` AND `engines.pnpm` AND `packageManager` in root `package.json` together — partial bumps leave the matrix broken. Add `--prod` to `pnpm audit` in scheduled security scans to skip dev-only noise.
+Always cache `~/.pnpm-store` + `.turbo`; always `pnpm install --frozen-lockfile`; pnpm
+**10.4.1+** in audit jobs. Service containers, caching detail, and the CI failure table:
+**`references/ci-pipeline.md`**.
 
 ---
 
-## Package Script Standards
+## Monorepo Structure & Package Scripts
 
-Every package's `package.json` must have these scripts and they must exit 0 on a clean repo:
+Standard layout (`apps/`, `packages/`, `.github/workflows/`, `turbo.json`, `biome.json`,
+`pnpm-workspace.yaml`, `tsconfig.base.json`), the required package scripts, and tsconfig
+inheritance: **`references/monorepo-scaffold.md`**.
 
-```json
-{
-  "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist coverage"
-  }
-}
-```
-
-**Critical rules:**
-- `vitest run` (not `vitest run --passWithNoTests`) will exit 1 if there are no test files — always use `--passWithNoTests` for new/stub packages
-- `tsc --noEmit` requires a `tsconfig.json` in the package root — if the package is a non-TS stub (Rust, Python), use `echo 'N/A — [lang] in M[n]'` instead
-- Never use `npm run` in CI — always `pnpm run`
+Key rule: every package's `build` must actually emit `dist/` — a no-op `build` script
+breaks turbo `^build` and any dependent that imports its `dist/` (see `ci-local-parity.md`).
 
 ---
 
@@ -151,52 +83,24 @@ Every package's `package.json` must have these scripts and they must exit 0 on a
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "organizeImports": { "enabled": true },
-  "linter": {
-    "enabled": true,
-    "rules": { "recommended": true }
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2
-  },
-  "javascript": {
-    "formatter": { "quoteStyle": "double" }
-  }
+  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
+  "javascript": { "formatter": { "quoteStyle": "double" } }
 }
 ```
 
-Run `pnpm exec biome check --write .` to fix all issues. Run `pnpm exec biome check .` in CI (read-only, fails on diff).
+`pnpm exec biome check --write .` to fix locally; `pnpm exec biome ci .` in CI
+(read-only, fails on diff — stricter than `check`). Detail: `references/biome.md`.
 
 ---
 
 ## Changesets Version Management
 
-- `MAJOR` — constitutional/breaking changes
-- `MINOR` — new capabilities
-- `PATCH` — bug fixes
-
-CI `release.yml` uses `changesets/action` — creates "Version Packages" PR automatically, publishes on merge to main.
-
-Every PR that changes user-facing behavior needs a changeset: `pnpm changeset`
-
----
-
-## Canary Scan — False Positive Prevention
-
-If the project uses canary token detection (regex patterns in source):
-
-```yaml
-# In CI canary scan step — exclude the detector file itself
-- name: Canary token scan
-  run: |
-    grep -r "canary-SOUL\|canary-IDENTITY" . \
-      --include="*.ts" \
-      --exclude-dir=".git" \
-      --exclude-dir="node_modules" \
-      --exclude="schemas.ts" \   # ← the detector file
-    && echo "LEAK DETECTED" && exit 1 || echo "Clean"
-```
+`MAJOR` = breaking/constitutional · `MINOR` = new capability · `PATCH` = bugfix. Every
+user-facing change needs a changeset (`pnpm changeset`). `release.yml` automates the
+"Version Packages" PR. After `pnpm changeset version`, re-run Biome (its JSON writer can
+break formatting) and `pnpm install`. Full flow + private-root gotchas:
+**`references/changesets.md`** and `references/submodule-release-gotchas.md`.
 
 ---
 
@@ -204,25 +108,9 @@ If the project uses canary token detection (regex patterns in source):
 
 For large monorepo scaffolds (>4 independent packages), dispatch in parallel:
 
-- `full-stack-architect` — architecture decisions, package dependency graph, API contracts
-- `code-reviewer` — review CI config before push (catches job dependency errors, missing caches)
+- `full-stack-architect` — architecture, package dependency graph, API contracts
+- `code-reviewer` — review CI config before push (job dependency errors, missing caches)
 - `feature-dev:code-architect` — individual package implementations
 
-Never serialize work that can run in parallel.
-
----
-
-## Common Failure Patterns (from skill-performance.tsv)
-
-| Failure | Root Cause | Prevention |
-|---------|-----------|------------|
-| `--frozen-lockfile` fails | `pnpm install` never run locally | Pre-push gate step 1 |
-| Biome CI diff | Manual formatting bypassed | Pre-push gate step 2 |
-| `tsc --noEmit` on Rust stub | tsconfig.json missing | Pre-push gate step 5 |
-| vitest exits 1 on empty suite | Missing `--passWithNoTests` | Package script standard |
-| Canary scan false positive | Detector file included in grep | Exclude detector file |
-| Multiple fix commits | Piecemeal debugging | `gh run view --log-failed` once, fix all |
-| HTTPS push blocked on workflow files | OAuth token missing `workflow` scope | Set SSH remote on repo init |
-| code-reviewer not dispatched pre-push | Skipped step 6 of pre-push gate | Dispatch is mandatory, not optional |
-| Dead release job | `outputs.published` not mapped from step | Always wire `id:` + `outputs:` on changesets jobs |
-| test job runs on broken code | Missing `needs:` gate | test must always depend on lint + typecheck |
+Never serialize work that can run in parallel. Scope each agent's brief to fit a token
+window — an agent cut off mid-task loses its work-in-progress report.
