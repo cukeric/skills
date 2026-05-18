@@ -238,3 +238,98 @@ After `pnpm changeset version` rewrites `package.json` files, Biome may flag whi
 ```
 
 This is harmless but fails CI / pre-push gate. Run `pnpm exec biome check --write .` immediately after `version-packages` and commit the format fixes as either a follow-up `style(biome):` commit or fold them into the release commit. Add this to the standard release runbook.
+
+---
+
+## 10. Renaming a project / brand changeover across a monorepo
+
+A full project rename (a rebrand, a scope change) is mostly a scripted bulk
+find/replace, but four mechanics break silently if done naïvely. Verified on a
+real `aigist → eloryn` zero-residual rebrand (358 files, git submodule of a
+`_dev` superproject).
+
+### 10.1 Renaming a submodule folder — do it from the superproject
+
+A submodule's folder is **not** renamed with a plain `mv` — that leaves the
+superproject with a deleted submodule at the old path and an untracked dir at
+the new path (broken state). Rename it from the **superproject**:
+
+```bash
+cd /path/to/superproject
+git mv _projects/oldname _projects/newname
+```
+
+`git mv` moves the working tree, the gitlink, and rewrites the submodule's
+`.git` file pointer. The submodule's own history (`.git/modules/.../`) is
+untouched and the submodule keeps working at the new path.
+
+### 10.2 `git mv` updates the submodule `path` but NOT the section header
+
+After `git mv _projects/old _projects/new`, `.gitmodules` ends up with:
+
+```ini
+[submodule "_projects/old"]      # ← section header NOT renamed
+	path = _projects/new          # ← path WAS updated
+	url = git@github.com:org/old.git
+```
+
+The stale section header is cosmetically wrong and inconsistent. **Fix it by
+hand** (edit `.gitmodules`: `[submodule "_projects/new"]`).
+
+### 10.3 `.git/config` keeps the old submodule section → `git submodule status` shows `-`
+
+`git mv` does not touch the **local** `_dev/.git/config`, which still has
+`[submodule "_projects/old"]`. Symptom: `git submodule status _projects/new`
+shows a leading `-` (reads as "not initialized") even though the submodule
+works fine. Fix the local config:
+
+```bash
+git config --rename-section 'submodule._projects/old' 'submodule._projects/new'
+```
+
+Then `git submodule status` shows `+<sha> _projects/new` — healthy. (The `+`
+just means the submodule HEAD is ahead of the recorded gitlink, normal after
+committing inside the submodule.)
+
+> The submodule `url` stays pointed at the old GitHub repo until the GitHub
+> repo itself is renamed — keep them in step. GitHub keeps a permanent redirect
+> on a repo rename, so an out-of-date `url` still fetches; update it for
+> cleanliness when the repo is renamed.
+
+### 10.4 Claude Code project memory is keyed to the cwd path
+
+`~/.claude/projects/<encoded-cwd>/memory/` is keyed to the project's absolute
+path (encoding: every `/` and `_` → `-`). Renaming the project folder orphans
+that memory dir — the next session opens at the new path, derives a new dir
+name, and finds no `project_status.md` / `MEMORY.md`. **Carry the memory
+across** as part of the rename:
+
+```bash
+cp -r ~/.claude/projects/-...-projects-oldname/memory \
+      ~/.claude/projects/-...-projects-newname/memory
+```
+
+Copy (don't move) — the old dir holds the live session transcript. Also rename
+`~/.claude/scratchpads/oldname` and any `_dev/_memory/oldname` session-memory dir.
+
+### 10.5 Dual-read env shim — rename env vars without a downtime window
+
+Renaming an env var (`OLD_FOO` → `NEW_FOO`) that a running production server
+already has set is a deploy hazard: ship the renamed code and it reads `NEW_FOO`
+(undefined on the un-migrated server) → breakage. The fix is a **dual-read
+shim** — the code reads the new name and falls back to the old:
+
+```ts
+/** Reads NEW_<suffix>, falling back to the legacy OLD_<suffix>. Remove the
+ *  fallback one release after the production env is renamed. */
+export function envVar(suffix: string, env = process.env): string | undefined {
+  return env[`NEW_${suffix}`] ?? env[`OLD_${suffix}`];
+}
+```
+
+Ship the rename + shim; rename the production env values on the next deploy
+window; then, **one release later**, delete the fallback. Flag every shim
+call-site with a removal comment so the cleanup is greppable. This decouples the
+code rename from the production-env rename — neither has to be atomic with a
+deploy.
+
