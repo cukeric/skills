@@ -90,6 +90,20 @@ Read this SKILL.md first for the overall process, then consult references as nee
 - Any recurring patterns (same skill corrected 3+ times = systemic issue)
 - New items to add to the backlog from this session
 
+### Recurrence Gate (highest-priority output)
+
+For every `gap` / `correction` in the last ~5 TSV sessions, ask: **did the same
+class of failure happen again this session?** If yes, the previous lesson did not
+change behaviour — and the reason is almost always **delivery, not capture**: the
+lesson was written into a skill `references/` file that the agent or session which
+needed it never loaded.
+
+A recurrence is the **highest-priority output of the whole cycle** — ranked above any
+new gap. It is not handled by editing the same skill reference again (that already
+failed). It is handled by **escalating delivery** — see §4.0. Document each
+recurrence explicitly: what the lesson was, where it was previously written, why that
+location was never loaded at the point of use.
+
 ---
 
 ## Phase 1: Session Analysis
@@ -166,6 +180,31 @@ See `references/skill-audit-patterns.md` for detailed audit procedures.
 ## Phase 4: Action Execution
 
 **Goal:** Make the actual improvements. Every change must meet enterprise-grade quality standards.
+
+### 4.0 Lesson Delivery — the routing requirement (DO THIS, for every lesson)
+
+> A skill is improved by `/self-improve` only if the improvement is *loaded at the
+> point of use*. The 2026-05-18 failure: the CI-parity lesson was correctly captured
+> into `enterprise-devx-monorepo/references/ci-local-parity.md` — but the build agent
+> that needed it was briefed to invoke `enterprise-frontend` only, never
+> `enterprise-devx-monorepo`, so the reference was never loaded and the identical
+> failure recurred. Capture without delivery is wasted work.
+
+For **every** lesson this cycle produces, pick its point-of-use artifact — the place
+that is actually loaded where the lesson is needed — and write it there:
+
+| The lesson governs… | Route it into… |
+|---|---|
+| how a build / remediation agent must work | `_dev/_standards/AGENT_BRIEF_TEMPLATE.md` (travels in every brief) |
+| a behaviour that must fire automatically, every time | a hook in `~/.claude/hooks/` + register in `settings.json` |
+| how the PM orchestrates / routes / decides | `CLAUDE.md` — global, or the project's |
+| a project-specific convention or skill routing | that project's `CLAUDE.md` |
+| domain knowledge an agent loads *because it invokes that skill* | the skill's `references/` — **only** when the consumer reliably invokes the skill |
+
+A skill `references/` edit is sufficient **only** when you can name the consumer and
+confirm it will invoke that skill. Otherwise the lesson MUST also be routed into the
+brief template, a hook, or CLAUDE.md. **A lesson with no named point-of-use artifact
+is not closed** — record it in the change report's Lesson Delivery table as OPEN.
 
 ### Decision Framework: What Action to Take
 
@@ -320,6 +359,20 @@ For each removal:
 
 ## Freshness Updates
 Summary of any version bumps, deprecated API fixes, or best-practice updates based on web research.
+
+## Lesson Delivery (MANDATORY — §4.0)
+A table covering every lesson this cycle produced:
+
+| Lesson | Delivery artifact (point of use) | How it fires next time |
+|---|---|---|
+| … | `_dev/_standards/AGENT_BRIEF_TEMPLATE.md` / a hook / `CLAUDE.md` / skill ref | … |
+
+Any lesson whose delivery artifact is "skill reference only" must justify that the
+consumer reliably invokes that skill — otherwise it is OPEN, not closed.
+
+## Recurrences Addressed
+For each failure that recurred from a prior session: the lesson, where it was
+previously (and insufficiently) written, and the harder mechanism it was escalated to.
 
 ## Recommendations (Deferred)
 Items identified but not actioned (too large, needs user input, waiting for more data).
