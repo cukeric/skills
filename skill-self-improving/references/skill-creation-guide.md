@@ -231,3 +231,25 @@ When the self-improvement process modifies an existing skill rather than creatin
 1. **Only add keywords — never remove existing ones** without explicit justification
 2. Add new technology names, patterns, and user phrasings discovered during the session
 3. If the skill's scope expanded, update the opening clause to reflect the broader coverage
+
+---
+
+## Promoting / Copying a Skill into the Shared Library (MANDATORY pre-flight)
+
+When promoting a project-local skill or agent to the global library (or copying one
+project's skill to another), it ALMOST NEVER comes clean. Before adding it, scan and fix:
+
+1. **Secrets.** Grep the file for hardcoded credentials — passwords, API keys, tokens,
+   connection strings (`postgresql://user:PASS@…`), `*_KEY=`, private keys. Replace with
+   env-var references (`${VAR}`). *(2026-05-30: a promoted `db-migrate` skill carried plaintext
+   production DB passwords straight into the global library — and the originals were already in
+   the source repo's git history, requiring rotation. A pre-promotion scan would have caught it.)*
+2. **Hardcoded absolute paths** (`/Users/<name>/…`, a specific repo dir) → make project-relative
+   or discover at runtime.
+3. **Project-specific identity** (project name, brand, fixed locale list, a specific VPS/host).
+   Decide per item: **genericize** (discover from the codebase) if the workflow is reusable, or
+   **namespace** (`<project>-<skill>`) if it is irreducibly project-specific — so it can't hijack
+   a generic trigger (a global `/deploy` that targets one project's VPS is a footgun).
+
+A promotion is not done until the file is secret-free, path-agnostic, and either generic or
+clearly namespaced.
