@@ -191,9 +191,33 @@ new redirect target.
 
 ---
 
+## 7. Module-level SDK-client init breaks `next build`
+
+Instantiating an API client at module top level throws during `next build`'s
+page-data collection when the key is absent in that environment (CI runner, a VPS
+whose `.env` lacks the key) — `next build` evaluates every route module, and many SDKs
+throw on construction without a key:
+
+```ts
+// ❌ Breaks the build wherever GROQ_API_KEY is absent — module is evaluated at build time
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+// ✅ Lazy singleton — constructed on first request, never during build
+let _groq: Groq | null = null
+function getGroq(): Groq {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+  return _groq
+}
+```
+
+Lazy-init has a bonus: the build needs **no runtime secrets**, so it runs identically
+on any runner. Clients constructed *inside* the handler are already safe — only
+module-scope instantiation is the trap. (iiSP `/api/chat`, 2026-05-29.)
+
 ## Quick checklist before shipping a new client-side feature
 
 - [ ] No `Buffer`, `process`, `__dirname` references in `"use client"` files
+- [ ] API/SDK clients (Groq, OpenAI, Stripe, …) are lazy-init'd, never constructed at module scope
 - [ ] Base64 decode uses `atob → Uint8Array → TextDecoder` for UTF-8 safety
 - [ ] Custom response headers have matching `Access-Control-Expose-Headers`
 - [ ] Tests inspecting BOM / byte-level encoding use `arrayBuffer()`, not `text()`

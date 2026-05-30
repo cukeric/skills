@@ -378,3 +378,29 @@ jobs:
 - [ ] Secrets stored in GitHub Secrets (never in workflow files)
 - [ ] Dependency caching enabled (pnpm, pip, Docker layers)
 - [ ] Database migrations run before app deploy
+
+---
+
+## VPS Deploy Gotchas (battle-tested 2026-05-29, iiSP)
+
+Three failure modes that pass every local check yet break a runner-driven VPS deploy:
+
+1. **Build the artifact ON THE RUNNER, never on the prod host.** A VPS-side
+   `bun run build` (Bun 1.3.6) segfaulted on teardown — the Next build *completed*,
+   then bun crashed, returning exit **132** and aborting the deploy mid-flight
+   (`rm -rf .next` had already run → prod left without a build). Build on the runner
+   (`oven-sh/setup-bun`), `rsync .next/standalone/` to the host, then restart. Building
+   on prod is both unreliable and bad practice.
+
+2. **A Cloudflare-fronted host 403s GitHub-runner IPs.** A post-deploy
+   `curl https://app.example.com/health` from the runner returns **403** (WAF/bot
+   protection on datacenter IPs) even when the site serves 200 to real users — a
+   guaranteed false failure. Health-check **internally over SSH** instead:
+   `ssh host 'curl -s -o /dev/null -w "%{http_code}" http://localhost:<PORT>/health'`.
+   Target a cheap endpoint (no DB/SSR), add a warm-up sleep for cold start.
+
+3. **Exclude `.env*` from the deploy rsync.** Shipping a developer's local env file
+   overwrites the curated production env — a local `DATABASE_URL=file:/Users/.../dev.db`
+   silently repoints prod at a nonexistent path. Preserve the host's own `.env` and
+   data files (`--exclude '.env*' --exclude '<db file>'`); restore them after an
+   `rsync --delete`.

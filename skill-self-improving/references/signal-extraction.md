@@ -131,6 +131,40 @@ date	session_id	skill	event_type	detail	severity
 
 ---
 
+## Delivery Requirement — MANDATORY for every `gap` and `correction`
+
+**A `gap` or `correction` row is malformed unless its `detail` names the point-of-use
+artifact the lesson was routed into — or carries an explicit `[NOT-ROUTED: <reason>]`
+tag.** There is no third option. A lesson that lives only in this TSV is loaded by no
+one at the point of use, so the identical failure recurs.
+
+> This rule exists because it already happened. A git-commit heredoc footgun was logged
+> 2026-05-18 as a low gap "logged not skill-changed" — routed nowhere — and **recurred
+> verbatim on 2026-05-29**. TSV-only capture is not delivery.
+
+Valid delivery artifacts (name the actual file/mechanism, not "documented"):
+- a rule a build/remediation agent must follow → `_dev/_standards/AGENT_BRIEF_TEMPLATE.md`
+- a behaviour that must fire automatically → a hook in `~/.claude/hooks/` + `settings.json`
+- a routing/operating rule for the PM → global or project `CLAUDE.md`
+- a project-specific convention → that project's `CLAUDE.md`
+- knowledge an agent loads **because it invokes that skill** → a skill `references/` file
+  (valid ONLY when the consumer that needs the lesson actually invokes the skill)
+
+**Self-check before writing any `gap`/`correction` row:** *"Where will this be loaded the
+next time it's needed?"* If you cannot name the file, the lesson is not closed — route it
+in Phase 4 first, then log the row citing that artifact. If you deliberately choose not to
+route it (genuinely one-off, no point of use), tag `[NOT-ROUTED: <why>]` so the next
+recurrence check can see the decision was conscious, not an omission.
+
+Examples of well-formed rows:
+```
+2026-05-29	ses_iisp_2026-05-29	none	correction	heredoc-in-$() commit breaks on apostrophe → BLOCKED by hook warn-git-heredoc-apostrophe.sh + settings.json	high
+2026-05-29	ses_iisp_2026-05-29	none	gap	VPS bun build segfaults → routed to iiSP CLAUDE.md deploy gotchas + enterprise-deployment/github-actions-cicd.md	high
+2026-04-02	ses_012	none	gap	one-off vendor API quirk, no reusable pattern [NOT-ROUTED: single-vendor, unlikely to recur]	low
+```
+
+---
+
 ## Edge Cases
 
 ### Multiple Corrections on Same Topic

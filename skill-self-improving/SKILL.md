@@ -206,6 +206,15 @@ confirm it will invoke that skill. Otherwise the lesson MUST also be routed into
 brief template, a hook, or CLAUDE.md. **A lesson with no named point-of-use artifact
 is not closed** — record it in the change report's Lesson Delivery table as OPEN.
 
+**This binds the TSV write, not just the change report.** Every `gap` and `correction`
+row in `skill-performance.tsv` MUST name its delivery artifact in `detail`, or carry an
+explicit `[NOT-ROUTED: <reason>]` tag — a row with neither is malformed. A TSV-only
+lesson is loaded by no one and recurs (2026-05-18 → 2026-05-29, the git-heredoc footgun:
+logged once, routed nowhere, recurred verbatim, then escalated to a blocking hook). See
+`references/signal-extraction.md` → "Delivery Requirement". The recurrence gate in Phase 0
+checks exactly this: a past `gap`/`correction` that came back is, almost always, one that
+was logged without a delivery artifact.
+
 ### Decision Framework: What Action to Take
 
 ```
