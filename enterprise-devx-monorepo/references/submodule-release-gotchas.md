@@ -41,6 +41,19 @@ gh pr view --repo cukeric/PR1M3Claw
 
 **Detection pattern:** if the first `gh run list` result has an unfamiliar workflow name, stop and re-run with `--repo`. Don't debug CI based on the wrong repo's output.
 
+**Permanent fix — set the default once (`gh repo set-default`).** A third trigger of the
+same wrong-repo symptom (2026-05-31): with **no default repo set at all**, an unqualified
+`gh run list` resolved to a completely unrelated repo (showed foreign workflow names —
+"ClawSweeper", "Mantis Telegram", a `codex/*` branch — none belonging to the project). It
+briefly looked like a CI catastrophe; it was just gh guessing. Fix at the source so you
+don't have to remember `--repo` every call:
+```bash
+gh repo set-default cukeric/<repo>      # run once per clone; binds unqualified gh to this repo
+gh repo set-default --view              # confirm what's bound
+```
+Until that's set, `gh repo set-default --view` prints "no default remote repository has been
+set" — treat that as the signal to either set it or pass `--repo OWNER/REPO` on every call.
+
 **Also applies to non-submodule repos with multiple remotes.** A repo can have
 `origin` (e.g. `cukeric/aigist`) AND `upstream` (e.g. a fork's source like
 `openclaw/openclaw`). `gh` may resolve to `upstream` rather than `origin`,

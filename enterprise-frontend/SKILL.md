@@ -30,6 +30,9 @@ This skill has detailed reference guides. Read the relevant file(s) based on the
 ### Client/Server Boundary
 - `references/client-server-boundary.md` — `Buffer`/`process` not in browsers, UTF-8-safe base64 decode, position-stable React table keys vs `noArrayIndexKey`, `Access-Control-Expose-Headers` for custom response headers, BOM-preserving response reads, role-gate redirect destinations
 
+### SEO & Metadata (Next.js App Router)
+- `references/nextjs-seo-metadata.md` — Metadata API (title template/`absolute`, canonicals, `robots`/`googleBot`), the `viewport` export, **client-component pages get metadata via a server segment `layout.tsx`**, file-convention OG/Twitter images, JSON-LD (Person/WebSite/BreadcrumbList/SoftwareApplication with stable `@id`s), sitemap/robots from data, slug-rename 301s, curl-verify rendered HTML
+
 Read this SKILL.md first for architecture decisions and standards, then consult the relevant reference files for implementation specifics.
 
 ---
