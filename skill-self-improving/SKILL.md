@@ -206,6 +206,19 @@ confirm it will invoke that skill. Otherwise the lesson MUST also be routed into
 brief template, a hook, or CLAUDE.md. **A lesson with no named point-of-use artifact
 is not closed** — record it in the change report's Lesson Delivery table as OPEN.
 
+> **cwd-keyed project memory is NOT a reliable delivery artifact for a workspace-wide
+> rule.** Memory under `~/.claude/projects/<encoded-cwd>/memory/` loads only for sessions
+> whose cwd matches that key. A rule that must hold *everywhere* (e.g. a workspace-wide
+> safety invariant) written only into one project's cwd-keyed memory is **orphaned** for a
+> session opened at a different cwd — the `_dev` root vs `_dev/_projects/<X>` is the
+> classic split. **Proof (2026-06-02):** the "never read/track `_access/` secrets" lesson
+> (2026-05-14) lived in `…--projects-aigist/memory/` + `…--projects-eloryn/memory/`, was
+> never loaded by a `_dev`-root session, and the identical failure recurred. Route
+> workspace-wide rules to a **hook** (cwd-independent) or **global `CLAUDE.md`**, never to
+> cwd-keyed project memory alone. And never *defer the structural fix* (the 2026-05-14
+> item also deferred the gitignore/untrack and "workspace CLAUDE.md still stale" — both
+> stayed open for 19 days until the recurrence forced them).
+
 **This binds the TSV write, not just the change report.** Every `gap` and `correction`
 row in `skill-performance.tsv` MUST name its delivery artifact in `detail`, or carry an
 explicit `[NOT-ROUTED: <reason>]` tag — a row with neither is malformed. A TSV-only
@@ -293,6 +306,18 @@ When the session revealed a task domain where a specialized agent would help:
 1. **Check if an agent already covers this domain** in `~/.claude/agents/`
 2. **Agent files** live in `~/.claude/agents/<name>.md`
 3. **Agent structure:** YAML frontmatter with `name`, `description`, `tools` list; then the agent's full system prompt
+
+> **Keep agents lean — role + expertise, not baked boilerplate.** Two anti-patterns cost
+> ~500 lines across 3 agents (trimmed 2026-06-02):
+> - **The ~134-line "Persistent Agent Memory" tutorial.** An agent with `memory: user`
+>   frontmatter does NOT need the full generic memory-system tutorial pasted into its body
+>   — the frontmatter is what enables memory; a ~6-line scoped pointer (what THIS agent
+>   should record + "follow the standard memory protocol, index in `MEMORY.md`") is enough.
+> - **Verbatim canonical patterns** that a skill already owns (e.g. full Dockerfile/nginx
+>   blocks duplicating `enterprise-deployment`). Per the Agent Operating Contract, agents
+>   **pull the skill on demand** and read the project `_wiki/` on demand — bake only the
+>   stable role, domain invariants, and project facts not held elsewhere. Before cutting,
+>   confirm the knowledge lives in the skill/wiki (don't lose it).
 
 ```markdown
 ---
