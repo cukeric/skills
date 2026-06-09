@@ -1,6 +1,6 @@
 ---
 name: finish
-description: End-of-session protocol. Chains env audit, security scan, code review, deploy, validation, and self-improve in order. Skips steps intelligently based on what changed.
+description: End-of-session protocol. Chains env audit, security scan, code review, deploy, validation, and self-improve in order. Skips steps intelligently based on what changed. Trigger on /finish, "finish", "finish up", "wrap up", "wrap it up", "end the session", "we're done", "done for today", "close out the session", "ship and wrap", or any request to properly close a coding session.
 user_invocable: true
 ---
 
