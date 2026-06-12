@@ -134,6 +134,33 @@ function useFocusTrap(open: boolean, triggerRef: RefObject<HTMLButtonElement>) {
 
 If you can use `<dialog>` + `showModal()`, you get this for free. Delete `useFocusTrap`. The dead-code risk (unused symbol, unused ref, unused prop pass-through) is real — Biome's `noUnusedVariables` will catch most of it, but the cleanup is yours to do.
 
+### The catastrophic variant — the focus WAR (eloryn, 2026-06-12)
+
+The mount-steal above is cosmetic until the trigger **opens on focus**. Then it
+compounds into an infinite main-thread-saturating loop:
+
+1. Mount-steal focuses the anchor button (the broken effect above).
+2. Anchor's `onFocus → setOpen(true)` opens the popover.
+3. Popover's open-effect focuses the panel → anchor `onBlur → setOpen(false)`.
+4. Close-effect "restores" focus to the anchor → goto 2. **Forever, at rAF speed.**
+
+Measured in production: ~120 popover mount/unmounts and 119 forced layouts **per
+second** at idle, ~24% of a core burned, the side menu freezing the renderer for
+38 s, and — because every `focus()` scrolls the viewport to the focused element —
+the page's scroll position pinned to the top (users "cannot scroll down"). It
+presents as *generic app-wide sluggishness*, nowhere near the popover.
+
+**Rules:**
+- A popover/tooltip opened by the anchor's own **hover or focus** must NEVER move
+  focus itself — give the component a `manageFocus={false}` mode (no panel focus on
+  open, no anchor restore on close) and catch Escape on the wrapper, where it
+  bubbles from the still-focused anchor.
+- Managed focus (menus opened by click) is fine, but restore only on a real
+  open→close transition (the `wasOpenRef` pattern above).
+- Diagnosis signature: `MutationObserver` shows one wrapper element mutating
+  continuously + `focusin` log alternating panel↔anchor. CDP
+  `Performance.getMetrics` LayoutCount climbing ≫60/sec at idle confirms it.
+
 ---
 
 ## 3. Hover on Touch Devices — CSS Pointer-Type Guard, Not React State

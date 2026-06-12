@@ -206,6 +206,22 @@ confirm it will invoke that skill. Otherwise the lesson MUST also be routed into
 brief template, a hook, or CLAUDE.md. **A lesson with no named point-of-use artifact
 is not closed** — record it in the change report's Lesson Delivery table as OPEN.
 
+> **A hook is only a delivery artifact if it actually FIRES — self-test it against the
+> harness's real input convention.** The harness delivers hook input as **JSON on
+> STDIN** (`{"tool_input": {"command"|"file_path": …}, "cwd": …}`); the old
+> `CLAUDE_TOOL_INPUT` env var is EMPTY. **Proof (2026-06-12):** all 9 env-var-reading
+> hooks — including the security-critical `block-access-dir.sh` and `pre-push-gate.sh`
+> — had been silent no-ops; the heredoc-commit footgun they were built to stop recurred
+> a third time, and the 2026-06-02 "self-tested 6/6" result was false confidence because
+> the test exported the env var by hand instead of piping JSON to stdin. Rules:
+> (1) every hook reads stdin first (`INPUT_JSON="$(cat)"`), jq-extracts the field it
+> needs, and may keep the env var only as fallback; (2) a self-test MUST pipe a
+> realistic harness JSON into the script — never fabricate the env; (3) bash wrappers
+> running `python3 - <<'PY'` MUST capture stdin into a variable BEFORE the heredoc
+> (the heredoc rebinds python's stdin and silently eats the piped JSON); (4) when a
+> hook-guarded failure occurs anyway, suspect the hook is dead before suspecting the
+> pattern — verify with a probe hook that logs env + stdin.
+
 > **cwd-keyed project memory is NOT a reliable delivery artifact for a workspace-wide
 > rule.** Memory under `~/.claude/projects/<encoded-cwd>/memory/` loads only for sessions
 > whose cwd matches that key. A rule that must hold *everywhere* (e.g. a workspace-wide

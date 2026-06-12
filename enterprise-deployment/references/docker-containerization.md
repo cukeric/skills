@@ -297,6 +297,16 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache dumb-init && rm -
 # NOT just `docker compose up -d` (which reuses the existing image).
 # This is a common gotcha when updating API keys, DSNs, or feature flags.
 
+# ⚠️ Next.js standalone DROPS runtime-read asset files (proof: eloryn 2026-06-12):
+# `output: "standalone"` copies only files the @vercel/nft tracer can see via
+# static require/import analysis. A library that loads data files at runtime with
+# fs.readFileSync (pdfkit's .afm font metrics, sharp ICC profiles, ONNX models,
+# wordlists…) builds green, passes tests under `next start`, and then 500s in the
+# container with ENOENT — the data dir silently never made it into
+# .next/standalone. Fix: explicit Dockerfile COPY of the asset dir into the
+# production stage (deterministic), or outputFileTracingIncludes in next.config.
+# Verify INSIDE the built image: `docker exec <c> ls <expected-asset-path>`.
+
 # ✅ Use COPY not ADD (ADD has implicit tar extraction and URL fetching)
 COPY . .
 ```
