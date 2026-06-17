@@ -272,3 +272,33 @@ function negotiateLocale(requested: string): typeof locales[number] {
 ```
 
 Do NOT label your French file as just `fr.json` if it contains Quebec usage — name it `fr-CA.json`. Future translators will assume `fr.json` is France French and "fix" your Quebec idioms.
+
+## Localizing DATA, not just UI chrome (single-source pattern)
+
+Message files (`en.json`/`fr.json`) cover UI chrome. But when the *content* is data produced by
+a backend/engine (legal citations, rule rationales, audit records, AI-generated text), translating
+the chrome around English data is a half-job — a bilingual audience (e.g. Government of Canada,
+constitutionally bilingual) sees French labels wrapping English content. Two ways to make the data
+bilingual, and the trade-off that matters:
+
+- **❌ Re-derive translations in the render layer** (map an id → localized string in the frontend
+  i18n) duplicates the producer's branch logic in a second place → the two **drift**. Avoid.
+- **✅ Single bilingual source** — the producer emits both languages as **additive optional sibling
+  fields** and the render layer just picks by locale with a source-language fallback:
+  - Producer (resolver/engine): `RuleApplied { citation, citationFr?, relevance, relevanceFr?, … }`
+    — the canonical (e.g. English) field stays authoritative for the audit record; FR is additive.
+    Make the internal resolution type's FR fields **required** so the compiler forces every branch
+    to emit them (no branch can silently leak the source language).
+  - Render: one helper `localize(obj, locale)` → `(locale==='fr' && obj.fieldFr) || obj.field`,
+    routed through **every** render site (don't inline per-field ternaries — that's how drift starts).
+    The `|| field` fallback is REQUIRED so records written before the bilingual change still render.
+  - Net: one source of truth (no drift — the #1 i18n-data trust risk), audit record stays canonical,
+    exports get the other language for free, and a missing translation degrades to the source string.
+  - Verify legal/official strings against the **official-language primary source** (statute names,
+    control catalogues have authoritative FR names); never machine-guess a legal citation.
+  Proven on Eloryn's Rule-Application Standard (2026-06): bilingual resolver + `lib/rule-localize.ts`
+  at 5 register sites; data + chrome both FR, zero drift, EN fallback for old events.
+
+Also: outcome/status labels used as the `{decision}` word in a sentence must be the **adjective**
+form ("Permis"/"Interdit"/"Terminé"), not the infinitive verb ("Permettre"/"Interdire") — a verb
+keyed `.short` reads wrong when interpolated as a noun-label. Audit `tml.*`/outcome label keys.

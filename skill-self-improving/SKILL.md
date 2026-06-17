@@ -371,6 +371,43 @@ When updating existing skills:
 - **Update the verification checklist** if new capabilities were added
 - **Keep reference file sizes manageable** — split large files into focused references
 
+### 4.7 Knowledge-base currency — recompile the project wiki (MANDATORY when a slice/milestone shipped)
+
+> **A skill library that learns but a project wiki that rots is half a memory.** The wiki
+> (`_dev/_memory/<project>/_wiki/`) is the LLM-compiled *current-state* truth that every agent
+> and every session-start is told to read FIRST. If `/self-improve` updates skills but never
+> recompiles the wiki, the wiki silently goes stale and the session-start context lies.
+>
+> **Proof (2026-06-16):** the eloryn wiki `index.md` still read "Current phase = DEMO 2.0" and
+> `last_compiled: 2026-06-10` after **5+ shipped sessions** (Rule-App Phase 1/2/3, the dashboard
+> milestone). The project CLAUDE.md *said* "recompile touched articles (/self-improve does this)"
+> — but the skill had **no step that did it**, so it never happened until the founder caught it
+> ("if we're not using the wiki, fix it"). Aspiration in CLAUDE.md ≠ enforcement in the skill.
+
+**When this cycle's session shipped or materially changed a slice/milestone, you MUST, as part
+of Phase 4:**
+1. Identify which wiki articles the work touched (architecture / decisions / gotchas / glossary /
+   index — and any project-specific articles).
+2. **Recompile those articles** from the new dated session log(s): update the prose to current
+   state, add the new session log to each article's `sources:` frontmatter, and bump
+   `last_compiled` / `last_verified` to today. Update the index's freshness table + "Current
+   phase" paragraph. (Surgical edits are fine; you do not have to rewrite untouched articles —
+   but every article whose subject changed MUST be brought current.)
+3. The Phase 5 report MUST list **which wiki articles were recompiled** (or state "none — no
+   slice shipped this session"). An unrecompiled-but-stale article is an OPEN item, not done.
+
+> `/memory-health` is the periodic deep audit (contradictions, orphans, coverage). This step is
+> the **per-ship currency pass** — lighter, but non-optional after a ship.
+
+### 4.8 Version-sync verification (MANDATORY after any deploy this cycle)
+
+If the session deployed, confirm versions are in lockstep and record it in the Phase 5 report:
+the repo root `package.json`, **every** workspace `packages/*/package.json`, and the **live
+deployed** surface (e.g. the dashboard login-footer `NEXT_PUBLIC_APP_VERSION` over public HTTPS)
+must all show the SAME version. Drift = the live demo a prospect sees is stale (the documented
+"demo stack drifts behind repo version after each bump" gotcha). One-liner:
+`for f in package.json packages/*/package.json; do node -e "console.log(require('./$f').version)"; done | sort -u` → expect a single line; then `curl -s https://<site>/login | grep -oE '0\.[0-9]+\.[0-9]+'`.
+
 ---
 
 ## Phase 5: Change Report
@@ -409,6 +446,14 @@ For each removal:
 
 ## Freshness Updates
 Summary of any version bumps, deprecated API fixes, or best-practice updates based on web research.
+
+## Knowledge-Base Currency (MANDATORY — §4.7)
+Which wiki articles were recompiled this cycle (with the new `last_compiled` date), or
+"none — no slice shipped." A stale-but-untouched article whose subject changed is OPEN, not done.
+
+## Version Sync (§4.8 — when a deploy happened)
+Repo root + all `packages/*` + live deployed version — confirmed identical (state the version), or
+the drift found and fixed.
 
 ## Lesson Delivery (MANDATORY — §4.0)
 A table covering every lesson this cycle produced:
