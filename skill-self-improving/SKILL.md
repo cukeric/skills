@@ -404,8 +404,11 @@ of Phase 4:**
 If the session deployed, confirm versions are in lockstep and record it in the Phase 5 report:
 the repo root `package.json`, **every** workspace `packages/*/package.json`, and the **live
 deployed** surface (e.g. the dashboard login-footer `NEXT_PUBLIC_APP_VERSION` over public HTTPS)
-must all show the SAME version. Drift = the live demo a prospect sees is stale (the documented
-"demo stack drifts behind repo version after each bump" gotcha). One-liner:
+must all show the SAME version **as the commit the live stack was built from**. ⚠ Expect the
+live stack to sit **exactly one auto-bump behind `origin/main` HEAD**: a push triggers a
+`chore(release): vX [skip ci]` version-bump that does NOT redeploy, so origin is +1 patch ahead
+of the deployed build — that is correct steady-state, NOT drift. **Real drift** = a MULTI-bump
+gap (e.g. live 0.25.13 while repo 0.27.0) or packages NOT in lockstep within one build. One-liner:
 `for f in package.json packages/*/package.json; do node -e "console.log(require('./$f').version)"; done | sort -u` → expect a single line; then `curl -s https://<site>/login | grep -oE '0\.[0-9]+\.[0-9]+'`.
 
 ---
