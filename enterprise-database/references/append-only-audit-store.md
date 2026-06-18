@@ -107,6 +107,30 @@ CREATE VIEW event_log_redacted WITH (security_invoker = true) AS
   SELECT id, created_at, actor_id, action, /* PII columns masked */ FROM event_log;
 ```
 
+### 3a. `INSERT … ON CONFLICT` under RLS also needs the SELECT (USING) policy
+
+A machine writer that does an **idempotent upsert** (`INSERT … ON CONFLICT (k) DO NOTHING`) on an
+RLS table needs BOTH the INSERT `WITH CHECK` policy **and** the SELECT `USING` policy for its role —
+the ON CONFLICT conflict-arbiter must be able to *see* a conflicting row. Miss the SELECT grant and
+you get a misleading `new row violates row-level security policy` **only on the ON CONFLICT path** —
+a plain `INSERT` by the same role succeeds, which sends you hunting the WITH CHECK policy (which is
+fine). This bit a `system`-role seed whose table SELECT policy admitted only human roles
+(`auditor/supervisor/admin`); a plain-INSERT sibling write (`appendHumanReview`) on another table was
+unaffected, masking the cause. **Diagnose under the real role — the owner bypasses RLS** (`ENABLE`,
+not `FORCE`), so an owner/superuser psql test proves nothing:
+
+```sql
+BEGIN;
+  SET ROLE app_runtime_role;                                  -- non-owner, RLS applies
+  SELECT set_config('app.actor_role', 'system', true);
+  INSERT INTO t (...) VALUES (...);                            -- works
+  INSERT INTO t (...) VALUES (...) ON CONFLICT (k) DO NOTHING; -- RLS violation if SELECT excludes the role
+ROLLBACK;
+```
+
+Fix: admit the writer's role to the SELECT policy (safe when the table holds no PII), or drop
+ON CONFLICT and catch the unique-violation in code.
+
 ---
 
 ## 4. The chain-head problem with RLS + SECURITY DEFINER
