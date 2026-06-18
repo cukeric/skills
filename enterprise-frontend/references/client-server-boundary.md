@@ -189,6 +189,26 @@ if (role !== "admin" && role !== "auditor") redirect("/human-pause")
 (e.g. `audit-log/page.tsx`) before choosing your destination. Don't invent a
 new redirect target.
 
+### 6a. Auth.js sign-out/redirect resolves the WRONG origin behind a proxy (2026-06-18)
+
+`signOut({ callbackUrl: "/login" })` (and any server-resolved redirect) builds its URL from
+the server's notion of its origin. Behind a reverse proxy that doesn't forward
+`X-Forwarded-Host`, Auth.js v5 resolves the origin as the app's internal bind
+(`0.0.0.0:3001`) → the user lands on an unreachable host. `trustHost: true` /
+`AUTH_TRUST_HOST=true` do NOT fix it if the proxy never sends the forwarded host.
+
+Two fixes, apply both where you can:
+- **Infra (root cause):** add `proxy_set_header X-Forwarded-Host $host;` at the proxy
+  (see enterprise-deployment `references/nginx-ssl.md`).
+- **Client (robust workaround, origin-independent):** in a `"use client"` handler, clear the
+  session then navigate using the BROWSER's own origin — never a server-resolved URL:
+  ```tsx
+  await signOut({ redirect: false });
+  window.location.href = "/login"; // resolves against the page's real origin
+  ```
+  This is deterministic regardless of how the server computes its origin. The same pattern
+  applies to any "redirect after a mutation" where the server origin may be misconfigured.
+
 ---
 
 ## 7. Module-level SDK-client init breaks `next build`

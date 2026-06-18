@@ -404,3 +404,27 @@ Three failure modes that pass every local check yet break a runner-driven VPS de
    silently repoints prod at a nonexistent path. Preserve the host's own `.env` and
    data files (`--exclude '.env*' --exclude '<db file>'`); restore them after an
    `rsync --delete`.
+
+4. **In a monorepo, sync EVERY workspace package's source — never an explicit
+   allow-list (2026-06-18).** A deploy that rsynced a hand-listed subset of
+   `packages/<name>/src` dirs omitted one changed dependency; the on-host Docker build
+   compiles the whole dependency closure, so the dependent package built against the
+   STALE on-host copy and failed typecheck (`Property 'X' does not exist on type 'Y'`) —
+   green everywhere locally. It "worked" for months only because that dep had never
+   changed in a deploy. **Sync `packages/*/src`** (glob, not a list) so any changed dep
+   reaches the host; per-dir `--delete` touches only the src dirs, never host-only root
+   files. Same class as #3: the deploy's file selection must match what the build needs,
+   not a snapshot of "what we usually touch."
+
+5. **Apply DB migrations as an explicit, idempotent deploy step — don't assume they
+   auto-run (2026-06-18).** A stack with a persistent DB volume had its initial
+   migrations applied by hand; a NEW migration silently never ran on deploy, so the new
+   table didn't exist and the feature no-oped (the app's try/catch swallowed "relation
+   does not exist"). Add a deploy step that applies ALL migrations in sorted order,
+   idempotently (`CREATE … IF NOT EXISTS` / `DROP POLICY … CREATE`), with
+   `ON_ERROR_STOP=1` so a real failure fails the deploy. Run psql INSIDE the DB container
+   as its own superuser over the local socket
+   (`docker exec -i <db-container> psql -U <admin> -d <db> -v ON_ERROR_STOP=1 -f - < m.sql`)
+   — no host `.env` path, no service-DNS hostname, no password in the command. (Aside:
+   a compose `env_file: - .env.prod` resolves relative to the COMPOSE FILE's dir, e.g.
+   `infra/prod/.env.prod`, NOT the project root — don't `source` it from the wrong path.)

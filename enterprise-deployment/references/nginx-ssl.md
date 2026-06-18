@@ -66,6 +66,11 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # X-Forwarded-Host is REQUIRED by origin-aware frameworks (Auth.js/NextAuth v5,
+        # many OAuth libs) to build absolute URLs. Without it they fall back to the app's
+        # internal bind (e.g. 0.0.0.0:3000) → logout/SSO/callback redirects point at an
+        # unreachable host. `Host $host` alone is NOT enough for these libs. (2026-06-18)
+        proxy_set_header X-Forwarded-Host $host;
 
         # Timeouts
         proxy_connect_timeout 60s;

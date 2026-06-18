@@ -236,3 +236,7 @@ Before considering any deployment complete, verify:
 - [ ] Zero-downtime deployment verified (deployment slots or blue-green)
 - [ ] Container images scanned for vulnerabilities
 - [ ] DNS and domain configured with appropriate TTL
+- [ ] DB migrations applied by an explicit, idempotent deploy step (not assumed to auto-run); a new migration is verified present on the target before the app expects it
+- [ ] Monorepo deploys sync ALL workspace source (`packages/*/src`), not a hand-listed subset — a changed dependency must reach the build host
+- [ ] Reverse proxy forwards `X-Forwarded-Host` (not just `Host`) for any origin-aware app (Auth.js/OAuth) — verify logout/callback redirects resolve to the PUBLIC host, not the internal bind
+- [ ] Connection strings in logs mask the FULL userinfo (`://***:***@`), not just the host — grep deploy/cron logs for a leaked password

@@ -365,3 +365,20 @@ curl -s -H "Authorization: Bearer $SECRET" https://app.com/api/cron/cleanup > /d
 - [ ] Emergency rotation procedure documented
 - [ ] Access to secrets limited by role
 - [ ] Secrets audit log (who accessed what, when)
+- [ ] Logs never print credentials — connection strings mask the FULL userinfo, not just the host
+
+## Never log credentials — mask the WHOLE userinfo (2026-06-18)
+
+A surprisingly common leak: a script logs its DB connection string "redacted" by stripping
+only the host, e.g. shell `${URL%%@*}@***` → keeps `postgresql://user:PASSWORD` and the live
+password lands in a log file. Redact the **entire** `user:pass`, not just the tail:
+
+```bash
+printf '%s' "$DB_URL" | sed -E 's#://[^@]+@#://***:***@#'
+# postgresql://***:***@db:5432/app   ← host/db visible, credentials gone
+```
+
+Rules: (1) when logging any URL that can carry userinfo, mask `://…@` entirely; (2) prefer not
+logging the connection string at all — log the host/db only; (3) **grep deploy and cron logs**
+for a leaked secret as part of a security review (`grep -E '://[^:]+:[^@*]+@' *.log`); (4) the
+same applies to printing env in CI — never echo a var that may contain a credential.
