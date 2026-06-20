@@ -143,3 +143,20 @@ Rule: **every filled element gets a `--text-on-<fill>` token defined in BOTH the
 grep -rn 'var(--[a-z-]*,[[:space:]]*#' src/   # every hit either: define the token, or drop the literal
 ```
 Fix = define the missing token as a **flipping alias** of a real one (`--surface-2: var(--background-warm)`) so it inherits the dark override automatically — one edit fixes every stale usage. Also: a global affordance (theme toggle, sign-out) must be added to **every** `app/**/layout.tsx` route-group, not just the main shell — sibling groups (e.g. a `(control)` surface) have their own layout.
+
+### Trap 3 — overriding a FRAMEWORK's default token needs HIGHER specificity than the framework's own theme selector
+
+When you re-theme a CSS framework (Infima/Docusaurus, Bootstrap, etc.) by overriding its design tokens for dark mode, a **bare `[data-theme="dark"]` (specificity 0,1,0) LOSES the cascade tie** to the framework's own default rule — Infima defines its dark tokens under `html[data-theme='dark']` (0,1,1), which wins, so your `--ifm-background-color: #1a1613` silently falls back to the framework's cool `#1b1b1d`.
+
+```css
+/* ❌ loses to Infima's html[data-theme=dark] default → framework colour wins */
+[data-theme="dark"] { --ifm-background-color: #1a1613; }
+
+/* ✅ :root[data-theme="dark"] is (0,2,0) — beats the framework's (0,1,1) */
+:root[data-theme="dark"] { --ifm-background-color: #1a1613; }
+```
+Rule: **token-override blocks for a framework theme use `:root[data-theme="dark"]`, not a bare attribute selector.** (`:root` + attr = two classes = 0,2,0, beats `html` + attr = 0,1,1.)
+
+**Also — match the framework's ROOT/body size model, don't shrink the root.** Setting Infima's `--ifm-font-size-base: 15px` shrinks the **html root**, so every rem heading/spacing scales 6.25% smaller than an app that keeps root 16px. Mirror the app: keep root 16px (`--ifm-font-size-base: 16px`) and set body copy via `body { font-size: 0.9375rem }`.
+
+**Verify the surface that RELIES on the token, not the easy one.** A homepage whose every section sets its own explicit background will look correct even when the token override failed — the bug only shows on a **bare content page** (a doc/article page) that inherits the framework background. When checking a global style/theme change, screenshot the plainest content page, not the hero. A cheap numeric probe beats eyeballing: `getComputedStyle(document.documentElement).getPropertyValue('--ifm-background-color')` + `rootFontSize` + `fontFamily` across each surface pins drift instantly.
