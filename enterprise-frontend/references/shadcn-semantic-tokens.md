@@ -112,3 +112,34 @@ grep -rn "text-warning\b\|text-success\b\|text-destructive-foreground" src/ --in
 grep -A2 "brand-surface\|surface-inset" src/app/globals.css
 # :root values should be L >= 0.90; .dark values should be L <= 0.25
 ```
+
+---
+
+## Two dark-mode contrast traps (any token system, not just shadcn)
+
+Both shipped invisible-in-dark text on eloryn 2026-06-19d; a green build never catches either — only an eyeball in the dark theme does.
+
+### Trap 1 — an OVERLOADED token (used as BOTH text and fill) breaks when the theme flips it
+
+If one token serves two roles — e.g. `--brand-ink` as heading TEXT *and* as a primary-button FILL — flipping it for dark mode (ink goes light so headings stay readable) silently inverts the button: a now-LIGHT fill with text that was hardcoded `#fff`/`--text-on-sec` → light-on-light, invisible.
+
+```css
+/* ❌ button text reuses a token that is the OPPOSITE side of its own fill in dark */
+.button-primary { background: var(--brand-ink); color: var(--text-on-sec); } /* both light in dark */
+
+/* ✅ a fill needs a PAIRED contrast token that flips WITH the fill */
+:root        { --text-on-brand: #fcfbfa; } /* brand-ink dark  → light text */
+:root[data-theme="dark"] { --text-on-brand: #1a1613; } /* brand-ink light → dark text */
+.button-primary { background: var(--brand-ink); color: var(--text-on-brand); }
+```
+Rule: **every filled element gets a `--text-on-<fill>` token defined in BOTH themes.** Never put the raw inverted ink as text on its own fill.
+
+### Trap 2 — an UNDEFINED CSS var with a hardcoded LIGHT fallback never flips
+
+`var(--surface-2, #f6f8fa)` looks token-driven but `--surface-2` was never defined → the hardcoded light `#f6f8fa` applies in BOTH themes → light page shell with light text in dark mode.
+
+```bash
+# Audit for undefined-token references whose fallback is a hardcoded LIGHT colour:
+grep -rn 'var(--[a-z-]*,[[:space:]]*#' src/   # every hit either: define the token, or drop the literal
+```
+Fix = define the missing token as a **flipping alias** of a real one (`--surface-2: var(--background-warm)`) so it inherits the dark override automatically — one edit fixes every stale usage. Also: a global affordance (theme toggle, sign-out) must be added to **every** `app/**/layout.tsx` route-group, not just the main shell — sibling groups (e.g. a `(control)` surface) have their own layout.
