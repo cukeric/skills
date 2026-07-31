@@ -215,6 +215,66 @@ prisma.$use(async (params, next) => {
 
 ---
 
+## Dependency & Supply-Chain Remediation — field-proven rules
+
+> Added 2026-07-24 from two real cross-repo sweeps (iisp + eloryn). Each rule below cost a
+> session to learn. The canonical ordered procedure lives in
+> `_dev/_standards/SECURITY.md` → "Remediating a transitive CVE" — read that for the full
+> sequence; these are the traps that make the difference.
+
+**1. A dependency sweep has a shelf life of DAYS, not weeks.** eloryn's nightly scan was green
+2026-07-23 and RED 2026-07-24 — four critical and five high advisories were *published* in that
+window; nothing in the repo changed. **"We swept it recently" is never a reason to skip
+re-running the gate.** Re-run it at the start of any security work.
+
+**2. Delete beats patch. Ask "is this dependency even used?" first.** 2026-07-22, iisp: three
+packages (`@google/genai`, `groq-sdk`, `@mdxeditor/editor`) had **zero imports repo-wide** and
+were the sole source of a CRITICAL `protobufjs` RCE plus high `ws`/`js-yaml`. Removing them took
+the repo from 14 high + 1 critical to **zero**, with no version bumps and no breaking changes.
+Dead deps accumulate after feature removals — grep for real imports before planning an upgrade.
+
+**3. An override with too LOOSE a floor is a silent no-op that LOOKS like coverage.**
+`"brace-expansion": ">=1.1.16"` sat in `pnpm.overrides` for months while the tree resolved to
+the *vulnerable* `5.0.7` — because 5.0.7 satisfies `>=1.1.16`. **When an advisory names a
+package you already override, compare the advisory's patched range against the override's
+floor.** An existing entry is the easiest thing to skim past and assume handled.
+
+**4. Bump the DECLARED range, not just the resolved one.** `next-auth@beta.32` resolves
+`@auth/core@0.41.3` and clears its advisories transitively — but the manifest still *declared*
+`^0.37.4`. A clean lockfile today does not stop a future install floating back onto a
+vulnerable line.
+
+**5. Overrides only take effect on re-install.** Editing `package.json` alone changes nothing;
+re-resolve, then re-run the gate.
+
+**6. Run the EXACT CI gate command, not an approximation.** `pnpm audit --audit-level=high
+--prod` and `npm audit --omit=dev` scope differently from a bare `audit`, which shows dev noise
+and hides whether the real gate passes. **The gate's exit code is the answer** — not a
+directory listing, not a vulnerability count.
+
+**7. A green push does NOT prove a security workflow is green — check the `on:` triggers.**
+eloryn's Security Scan runs only on `schedule` / `pull_request` / `workflow_dispatch`, so
+pushing a fix to main never re-runs it. Dispatch it (`gh workflow run`) and observe the result.
+
+**8. Don't defer auth-library bumps out of fear of breakage.** `next-auth` beta.25 → beta.32 —
+seven beta versions of an auth library — needed **zero code changes**; `tsc --noEmit` was clean
+across all 10 call sites. Meanwhile the advisory being dodged was
+**GHSA-8fpg-xm3f-6cx3: configuration errors cause existence-based auth checks to FAIL OPEN** —
+the auth object is populated with an error, so `if (auth)` *passes* when it must not.
+
+**The fail-open class deserves its own habit.** When reviewing any guard, ask: *what does this
+do when its input is malformed rather than hostile?* An auth check that throws is safe; an auth
+check that returns a truthy error object is a bypass. Grep for `if (auth)`, `if (session)`,
+`if (user)` — existence checks on objects that can be populated-but-invalid.
+
+**9. Leaving moderates unfixed is a legitimate decision — record the reasoning.** 21
+moderate/low advisories were deliberately left in eloryn: they are docusaurus build tooling
+(`webpack-dev-server`, `launch-editor`, `http-proxy-middleware`) not shipped in the product, and
+blanket overrides risk breaking the docs build for no production security gain. Log the call so
+a later session doesn't read it as oversight and doesn't blindly "fix" it.
+
+---
+
 ## Security Review Workflow
 
 ### For Every PR

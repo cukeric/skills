@@ -81,6 +81,15 @@ Biome classifies fixes as "safe" (guaranteed to not change runtime behavior) and
 
 **If CI shows errors from these rules, `biome check --write` will NOT fix them.** You must run `biome check --write --unsafe .`.
 
+**⚠ Known destructive `--unsafe` rewrite (caught 2026-07-25, eloryn config-db):** the
+`noDelete` perf rule rewrites `delete process.env.X` → `process.env.X = undefined`,
+which **breaks Node's env-unset semantics** — assignment coerces to the STRING
+`"undefined"`, so `process.env.X` is truthy afterwards and `?? fallback` / `if (env.X)`
+guards behave differently. Tests that unset env vars silently changed meaning. After
+any `--unsafe` run, `git diff` for `process.env` assignments that were `delete`
+statements; where `delete` is intentional, keep it with a `biome-ignore lint/performance/noDelete`
+comment. An auto-fix that changes runtime semantics is a defect, not a cleanup.
+
 ### Pre-push gate command
 
 ```bash
